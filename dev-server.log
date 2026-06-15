@@ -1,0 +1,50 @@
+
+> agend-barber@0.1.0 dev
+> next dev -H 127.0.0.1 -p 3000
+
+  ▲ Next.js 14.2.13
+  - Local:        http://127.0.0.1:3000
+  - Network:      http://127.0.0.1:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 6.1s
+ ✓ Compiled /src/middleware in 485ms (125 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 5.3s (1420 modules)
+ GET / 200 in 5905ms
+ ✓ Compiled in 664ms (719 modules)
+ ✓ Compiled in 115ms (705 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (244kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (102kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ GET / 200 in 34ms
+ ✓ Compiled /onboarding in 468ms (1405 modules)
+ GET /onboarding 200 in 646ms
+ ✓ Compiled /cliente/servicos in 357ms (1415 modules)
+ GET /cliente/servicos 200 in 439ms
+ ✓ Compiled /cliente/servicos/[slug] in 415ms (1437 modules)
+ GET /cliente/servicos/corte-barba 200 in 964ms
+ ✓ Compiled /cliente/agenda in 306ms (1445 modules)
+ GET /cliente/agenda 200 in 406ms
+ ✓ Compiled /cliente/favoritos in 301ms (1450 modules)
+ GET /cliente/favoritos 200 in 358ms
+ ✓ Compiled /cliente/perfil in 360ms (1460 modules)
+ GET /cliente/perfil 200 in 416ms
+ ○ Compiling /agendar/[slug] ...
+ ✓ Compiled /agendar/[slug] in 3.4s (2785 modules)
+ GET /agendar/demo 200 in 4033ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 541ms (2811 modules)
+ GET /login 200 in 670ms
+ ✓ Compiled /cadastro in 470ms (2820 modules)
+ GET /cadastro 200 in 541ms
+ GET / 200 in 54ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 838ms (2812 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 926ms
+ GET /_next/static/chunks/app/LayoutGroupContext.mjs.map 404 in 157ms
+ ✓ Compiled /cliente/servicos in 117ms (730 modules)
+ GET /_next/static/chunks/app/cliente/servicos/LayoutGroupContext.mjs.map 404 in 70ms
+ ✓ Compiled /cliente/servicos/[slug] in 153ms (742 modules)
+ ✓ Compiled /agendar/[slug] in 221ms (1405 modules)
+ GET /_next/static/chunks/app/agendar/%5Bslug%5D/LayoutGroupContext.mjs.map 404 in 67ms

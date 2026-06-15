@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 11% 4%;
+    --foreground: 0 0% 100%;
+    --card: 225 13% 10%;
+    --card-foreground: 0 0% 100%;
+    --popover: 210 10% 7%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 44 100% 48%;
+    --primary-foreground: 210 11% 4%;
+    --secondary: 210 10% 7%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 225 13% 10%;
+    --muted-foreground: 220 9% 66%;
+    --accent: 44 100% 60%;
+    --accent-foreground: 210 11% 4%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 10% 18%;
+    --input: 220 10% 16%;
+    --ring: 44 100% 48%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 210 11% 4%;
+    --foreground: 0 0% 100%;
+    --card: 225 13% 10%;
+    --card-foreground: 0 0% 100%;
+    --popover: 210 10% 7%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 44 100% 48%;
+    --primary-foreground: 210 11% 4%;
+    --secondary: 210 10% 7%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 225 13% 10%;
+    --muted-foreground: 220 9% 66%;
+    --accent: 44 100% 60%;
+    --accent-foreground: 210 11% 4%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 10% 18%;
+    --input: 220 10% 16%;
+    --ring: 44 100% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  html {
+    background: #08090A;
+  }
+}
+
+@layer components {
+  .premium-screen {
+    @apply min-h-screen bg-[#08090A] text-white;
+    background-image:
+      radial-gradient(circle at top left, rgba(244, 180, 0, 0.12), transparent 28rem),
+      linear-gradient(180deg, #101214 0%, #08090A 40%, #08090A 100%);
+  }
+
+  .premium-card {
+    @apply rounded-lg border border-white/10 bg-[#16181D] shadow-[0_18px_60px_rgba(0,0,0,0.35)];
+  }
+
+  .premium-input {
+    @apply h-12 rounded-lg border-white/10 bg-[#101214] text-white placeholder:text-[#6B7280] focus-visible:ring-[#F4B400] focus-visible:ring-offset-0;
+  }
+
+  .premium-button {
+    @apply h-12 rounded-lg bg-[#F4B400] px-5 font-semibold text-[#08090A] shadow-[0_14px_28px_rgba(244,180,0,0.22)] hover:bg-[#FFCC33];
+  }
+
+  .premium-muted {
+    @apply text-[#9CA3AF];
+  }
+}
+
+@layer utilities {
+  .premium-screen .bg-white,
+  .premium-screen .bg-slate-50 {
+    background-color: #16181D !important;
+  }
+
+  .premium-screen .border {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .premium-screen .text-slate-800,
+  .premium-screen .text-slate-700 {
+    color: #FFFFFF !important;
+  }
+
+  .premium-screen .text-slate-600,
+  .premium-screen .text-slate-500,
+  .premium-screen .text-slate-400,
+  .premium-screen .text-muted-foreground {
+    color: #9CA3AF !important;
+  }
+
+  .premium-screen .text-slate-300 {
+    color: #6B7280 !important;
+  }
+
+  .premium-screen .bg-amber-500 {
+    background-color: #F4B400 !important;
+  }
+
+  .premium-screen .hover\:bg-amber-600:hover {
+    background-color: #FFCC33 !important;
+  }
+}
