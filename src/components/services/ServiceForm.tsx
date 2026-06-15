@@ -39,11 +39,12 @@ export function ServiceForm({ open, onOpenChange, onSubmit, service, loading }: 
     if (service) {
       reset({
         name: service.name,
+        image_url: service.image_url ?? '',
         price: service.price,
         duration_minutes: service.duration_minutes,
       })
     } else {
-      reset({ name: '', price: 0, duration_minutes: 30 })
+      reset({ name: '', image_url: '', price: 0, duration_minutes: 30 })
     }
   }, [service, open, reset])
 
@@ -59,6 +60,13 @@ export function ServiceForm({ open, onOpenChange, onSubmit, service, loading }: 
             <Label htmlFor="name">Nome do serviço</Label>
             <Input id="name" placeholder="ex: Corte + Barba" {...register('name')} />
             {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="image_url">Imagem do serviço</Label>
+            <Input id="image_url" placeholder="https://..." {...register('image_url')} />
+            <p className="text-xs text-muted-foreground">Cole uma URL de imagem para aparecer no card e no link público.</p>
+            {errors.image_url && <p className="text-sm text-red-500">{errors.image_url.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

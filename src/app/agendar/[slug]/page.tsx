@@ -15,6 +15,7 @@ import { BrandMark } from '@/components/premium/BrandMark'
 import { barberPhotos } from '@/lib/premium-data'
 import { ChevronLeft, Clock3, MapPin, Scissors, ShieldCheck } from 'lucide-react'
 import { formatDate, formatPrice, formatTime } from '@/lib/utils/format'
+import { getOpenStatus } from '@/lib/utils/open-status'
 
 type Step = 'service' | 'date' | 'time' | 'client' | 'success'
 
@@ -38,10 +39,10 @@ const demoBarber: Barber = {
 }
 
 const demoServices: Service[] = [
-  { id: 'demo-1', barber_id: 'demo', name: 'Corte + Barba', price: 80, duration_minutes: 60, is_active: true, created_at: '', updated_at: '' },
-  { id: 'demo-2', barber_id: 'demo', name: 'Degrade', price: 60, duration_minutes: 45, is_active: true, created_at: '', updated_at: '' },
-  { id: 'demo-3', barber_id: 'demo', name: 'Barba', price: 40, duration_minutes: 30, is_active: true, created_at: '', updated_at: '' },
-  { id: 'demo-4', barber_id: 'demo', name: 'Tratamento', price: 90, duration_minutes: 45, is_active: true, created_at: '', updated_at: '' },
+  { id: 'demo-1', barber_id: 'demo', name: 'Corte + Barba', price: 80, duration_minutes: 60, image_url: null, is_active: true, created_at: '', updated_at: '' },
+  { id: 'demo-2', barber_id: 'demo', name: 'Degradê', price: 60, duration_minutes: 45, image_url: null, is_active: true, created_at: '', updated_at: '' },
+  { id: 'demo-3', barber_id: 'demo', name: 'Barba', price: 40, duration_minutes: 30, image_url: null, is_active: true, created_at: '', updated_at: '' },
+  { id: 'demo-4', barber_id: 'demo', name: 'Tratamento', price: 90, duration_minutes: 45, image_url: null, is_active: true, created_at: '', updated_at: '' },
 ]
 
 const demoRules: AvailabilityRule[] = [1, 2, 3, 4, 5, 6].map((day) => ({
@@ -199,12 +200,13 @@ export default function BookingPage() {
   }
 
   const availableDays = rules.length > 0 ? rules.map((rule) => rule.day_of_week) : [1, 2, 3, 4, 5, 6]
+  const openStatus = getOpenStatus(rules)
   const steps: Step[] = ['service', 'date', 'time', 'client']
   const currentStepIndex = Math.max(steps.indexOf(step), 0)
   const stepTitle: Record<Step, string> = {
-    service: 'Escolha o servico',
+    service: 'Escolha o serviço',
     date: 'Escolha a data',
-    time: 'Escolha o horario',
+    time: 'Escolha o horário',
     client: 'Seus dados',
     success: 'Confirmacao',
   }
@@ -253,10 +255,20 @@ export default function BookingPage() {
               <div>
                 <p className="text-sm font-semibold text-[#F4B400]">{barber?.barber_name}</p>
                 <h1 className="mt-2 text-[32px] font-semibold leading-tight text-white">{barber?.barbershop_name}</h1>
-                <div className="mt-3 flex items-center gap-3 text-sm text-[#D1D5DB]">
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[#D1D5DB]">
                   <span className="flex items-center gap-1"><MapPin className="h-4 w-4 text-[#F4B400]" /> Unidade premium</span>
                   <span className="flex items-center gap-1"><ShieldCheck className="h-4 w-4 text-[#22C55E]" /> Confirmacao rapida</span>
+                  <span className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${
+                    openStatus.isOpen
+                      ? 'border-[#22C55E]/40 bg-[#22C55E]/15 text-[#22C55E]'
+                      : 'border-[#EF4444]/35 bg-[#EF4444]/12 text-[#FCA5A5]'
+                  }`}>
+                    {openStatus.label}
+                  </span>
                 </div>
+                {!openStatus.isOpen && openStatus.nextLabel && (
+                  <p className="mt-2 text-sm text-[#D1D5DB]">{openStatus.nextLabel}</p>
+                )}
               </div>
             </div>
           </section>
@@ -290,7 +302,7 @@ export default function BookingPage() {
             <div className="premium-card mb-5 space-y-3 p-4 text-sm">
               {booking.service && (
                 <div className="flex justify-between gap-4">
-                  <span className="text-[#9CA3AF]">Servico</span>
+                  <span className="text-[#9CA3AF]">Serviço</span>
                   <span className="text-right font-semibold text-white">{booking.service.name} - {formatPrice(booking.service.price)}</span>
                 </div>
               )}
@@ -302,7 +314,7 @@ export default function BookingPage() {
               )}
               {booking.time && step === 'client' && (
                 <div className="flex justify-between gap-4">
-                  <span className="text-[#9CA3AF]">Horario</span>
+                  <span className="text-[#9CA3AF]">Horário</span>
                   <span className="text-right font-semibold text-white">{formatTime(booking.time)}</span>
                 </div>
               )}
@@ -313,7 +325,7 @@ export default function BookingPage() {
             services.length > 0 ? (
               <ServiceSelector services={services} selectedId={booking.service?.id ?? null} onSelect={handleSelectService} />
             ) : (
-              <div className="premium-card p-6 text-center text-[#9CA3AF]">Nenhum servico disponivel.</div>
+              <div className="premium-card p-6 text-center text-[#9CA3AF]">Nenhum serviço disponível.</div>
             )
           )}
 

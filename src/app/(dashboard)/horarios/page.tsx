@@ -13,6 +13,8 @@ import { PageLoading } from '@/components/shared/LoadingSpinner'
 import { Plus, Trash2, Clock, Ban } from 'lucide-react'
 import { formatDateShort, formatTime } from '@/lib/utils/format'
 import type { AvailabilityRuleInput, BlockTimeInput } from '@/lib/validations/availability'
+import { demoBarber, demoRules } from '@/lib/demo-data'
+import { DEMO_STORAGE_KEY } from '@/lib/demo-session'
 
 export default function HorariosPage() {
   const [barber, setBarber] = useState<any>(null)
@@ -24,13 +26,26 @@ export default function HorariosPage() {
   const [formLoading, setFormLoading] = useState(false)
   const [deleteRuleId, setDeleteRuleId] = useState<string | null>(null)
   const [deleteBlockId, setDeleteBlockId] = useState<string | null>(null)
+  const [demoMode, setDemoMode] = useState(false)
 
   const supabase = createClient()
   const { toast } = useToast()
 
   const loadData = useCallback(async () => {
+    if (window.localStorage.getItem(DEMO_STORAGE_KEY) === 'admin') {
+      setDemoMode(true)
+      setBarber(demoBarber)
+      setRules((current) => current.length ? current : demoRules)
+      setBlockedTimes([])
+      setLoading(false)
+      return
+    }
+
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
     const { data: barberData } = await supabase
       .from('barbers').select('*').eq('user_id', user.id).single()
@@ -52,6 +67,27 @@ export default function HorariosPage() {
   const handleAddRule = async (data: AvailabilityRuleInput) => {
     if (!barber) return
     setFormLoading(true)
+
+    if (demoMode) {
+      setRules((current) => [
+        ...current,
+        {
+          id: `demo-rule-${Date.now()}`,
+          barber_id: barber.id,
+          day_of_week: Number(data.day_of_week),
+          start_time: data.start_time,
+          end_time: data.end_time,
+          interval_minutes: Number(data.interval_minutes),
+          is_active: true,
+          created_at: new Date().toISOString(),
+        },
+      ])
+      toast({ title: 'Dia de atendimento demo adicionado!' })
+      setAvailFormOpen(false)
+      setFormLoading(false)
+      return
+    }
+
     const { error } = await supabase.from('availability_rules').insert({
       barber_id: barber.id,
       day_of_week: Number(data.day_of_week),
@@ -72,6 +108,25 @@ export default function HorariosPage() {
   const handleAddBlock = async (data: BlockTimeInput) => {
     if (!barber) return
     setFormLoading(true)
+
+    if (demoMode) {
+      setBlockedTimes((current) => [
+        ...current,
+        {
+          id: `demo-block-${Date.now()}`,
+          barber_id: barber.id,
+          blocked_date: data.blocked_date,
+          blocked_time: data.blocked_time || null,
+          reason: data.reason || null,
+          created_at: new Date().toISOString(),
+        },
+      ])
+      toast({ title: 'Horário demo bloqueado!' })
+      setBlockFormOpen(false)
+      setFormLoading(false)
+      return
+    }
+
     const { error } = await supabase.from('blocked_times').insert({
       barber_id: barber.id,
       blocked_date: data.blocked_date,
@@ -90,6 +145,13 @@ export default function HorariosPage() {
 
   const handleDeleteRule = async () => {
     if (!deleteRuleId) return
+    if (demoMode) {
+      setRules((current) => current.filter((rule) => rule.id !== deleteRuleId))
+      toast({ title: 'Dia demo removido!' })
+      setDeleteRuleId(null)
+      return
+    }
+
     const { error } = await supabase.from('availability_rules').delete().eq('id', deleteRuleId)
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' })
@@ -102,6 +164,13 @@ export default function HorariosPage() {
 
   const handleDeleteBlock = async () => {
     if (!deleteBlockId) return
+    if (demoMode) {
+      setBlockedTimes((current) => current.filter((block) => block.id !== deleteBlockId))
+      toast({ title: 'Bloqueio demo removido!' })
+      setDeleteBlockId(null)
+      return
+    }
+
     const { error } = await supabase.from('blocked_times').delete().eq('id', deleteBlockId)
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' })
@@ -119,11 +188,11 @@ export default function HorariosPage() {
   return (
     <>
       <Header barber={barber} title="Horários" />
-      <div className="flex-1 p-6 space-y-8">
+      <div className="flex-1 space-y-7 p-4 sm:space-y-8 sm:p-6">
 
         {/* Regras de disponibilidade */}
         <section>
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-semibold text-slate-700">Dias de atendimento</h2>
             <Button
               className="bg-amber-500 hover:bg-amber-600 gap-2"
@@ -172,7 +241,7 @@ export default function HorariosPage() {
 
         {/* Horários bloqueados */}
         <section>
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-semibold text-slate-700">Horários bloqueados</h2>
             <Button
               variant="outline"

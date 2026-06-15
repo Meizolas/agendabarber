@@ -16,6 +16,7 @@ export interface Service {
   name: string
   price: number
   duration_minutes: number
+  image_url: string | null
   is_active: boolean
   created_at: string
   updated_at: string

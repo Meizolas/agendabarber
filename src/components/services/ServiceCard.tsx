@@ -5,6 +5,7 @@ import { formatPrice, formatDuration } from '@/lib/utils/format'
 import { Pencil, Trash2, Clock, DollarSign } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { featuredServices } from '@/lib/premium-data'
 
 interface ServiceCardProps {
   service: Service
@@ -13,8 +14,12 @@ interface ServiceCardProps {
 }
 
 export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
+  const image = service.image_url || featuredServices[0].photo
+
   return (
-    <div className="premium-card p-5 transition hover:border-[#F4B400]/35">
+    <div className="premium-card overflow-hidden transition hover:border-[#F4B400]/35">
+      <img src={image} alt={service.name} className="h-36 w-full object-cover" />
+      <div className="p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-center gap-2">
@@ -52,6 +57,7 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
+      </div>
       </div>
     </div>
   )

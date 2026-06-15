@@ -11,8 +11,8 @@ import { useAuth } from '@/hooks/useAuth'
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Inicio' },
-  { href: '/servicos', icon: Scissors, label: 'Servicos' },
-  { href: '/horarios', icon: Clock, label: 'Horarios' },
+  { href: '/servicos', icon: Scissors, label: 'Serviços' },
+  { href: '/horarios', icon: Clock, label: 'Horários' },
   { href: '/agendamentos', icon: CalendarCheck, label: 'Agendamentos' },
   { href: '/perfil', icon: User, label: 'Perfil' },
 ]
@@ -25,7 +25,7 @@ export function Sidebar() {
   return (
     <>
       <button
-        className="fixed top-4 left-4 z-50 rounded-lg border border-white/10 bg-[#101214] p-2 text-white shadow-md lg:hidden"
+        className="fixed left-4 top-4 z-50 rounded-lg border border-white/10 bg-[#101214] p-2 text-white shadow-md lg:hidden"
         onClick={() => setMobileOpen(!mobileOpen)}
         aria-label="Abrir menu"
       >

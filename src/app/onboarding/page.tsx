@@ -2,58 +2,60 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight } from 'lucide-react'
-import { BrandMark } from '@/components/premium/BrandMark'
+import { ChevronRight } from 'lucide-react'
 import { barberPhotos } from '@/lib/premium-data'
-
-const slides = [
-  {
-    title: 'Seu estilo, nossa arte.',
-    text: 'Encontre os melhores barbeiros e agende seu horario em poucos toques.',
-    image: barberPhotos.chair,
-  },
-  {
-    title: 'Agende em segundos.',
-    text: 'Escolha servico, barbeiro, data e horario sem troca de mensagens.',
-    image: barberPhotos.barber,
-  },
-  {
-    title: 'Experiencia premium.',
-    text: 'Ambiente moderno, atendimento organizado e resultado impecavel.',
-    image: barberPhotos.cut,
-  },
-]
 
 export default function OnboardingPage() {
   return (
-    <main className="premium-screen min-h-screen overflow-hidden">
-      <div className="mx-auto flex min-h-screen max-w-xl flex-col px-5 py-5">
-        <BrandMark />
-        <div className="mt-8 flex flex-1 gap-4 overflow-x-auto pb-6 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {slides.map((slide, index) => (
-            <motion.section
-              key={slide.title}
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: index * 0.08 }}
-              className="relative min-w-full snap-center overflow-hidden rounded-[30px] border border-white/10 bg-[#101214]"
+    <main className="min-h-screen overflow-hidden bg-[#070809] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 py-4">
+
+        <motion.section
+          initial={{ opacity: 0, y: 18, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="relative flex min-h-[calc(100vh-2rem)] flex-1 overflow-hidden rounded-[28px] border border-[#A8791A]/45 bg-[#101214] shadow-[0_22px_80px_rgba(0,0,0,0.55)]"
+        >
+          <img
+            src={barberPhotos.barber}
+            alt="Barbeiro em retrato preto e branco"
+            className="absolute inset-0 h-full w-full object-cover grayscale"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/10" />
+          <div className="absolute left-5 right-5 top-4 flex items-center justify-between text-[11px] font-semibold text-white">
+            <span>9:30</span>
+            <span className="tracking-[0.2em]">•••</span>
+          </div>
+
+          <div className="relative flex w-full flex-col justify-end px-6 pb-8 pt-16">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.18, duration: 0.45 }}
             >
-              <img src={slide.image} alt={slide.title} className="absolute inset-0 h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/10" />
-              <div className="relative flex h-full min-h-[640px] flex-col justify-end p-7">
-                <p className="text-sm font-semibold text-[#F4B400]">0{index + 1}</p>
-                <h1 className="mt-3 max-w-[310px] text-[32px] font-semibold leading-tight text-white">{slide.title}</h1>
-                <p className="mt-4 max-w-[280px] text-[16px] leading-7 text-[#D1D5DB]">{slide.text}</p>
-                <div className="mt-8 flex items-center justify-between">
-                  <Link href="/" className="text-sm font-medium text-white/80">Pular</Link>
-                  <Link href="/login" className="grid h-14 w-14 place-items-center rounded-full bg-[#F4B400] text-[#08090A] shadow-[0_18px_36px_rgba(244,180,0,0.3)]">
-                    <ArrowRight className="h-5 w-5" />
-                  </Link>
-                </div>
-              </div>
-            </motion.section>
-          ))}
-        </div>
+              <h1 className="max-w-[280px] text-[40px] font-semibold leading-[1.05] tracking-normal text-white">
+                Seu estilo, nossa arte.
+              </h1>
+              <p className="mt-4 max-w-[260px] text-[15px] leading-6 text-[#D1D5DB]">
+                Agende com os melhores barbeiros perto de voce.
+              </p>
+            </motion.div>
+
+            <Link
+              href="/login"
+              className="mt-10 inline-flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#F4B400] px-6 text-sm font-bold text-[#08090A] shadow-[0_18px_40px_rgba(244,180,0,0.28)] transition hover:bg-[#FFCC33]"
+            >
+              Comecar
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+
+            <div className="mt-6 flex justify-center gap-1.5">
+              <span className="h-1.5 w-7 rounded-full bg-white" />
+              <span className="h-1.5 w-1.5 rounded-full bg-white/35" />
+              <span className="h-1.5 w-1.5 rounded-full bg-white/35" />
+            </div>
+          </div>
+        </motion.section>
       </div>
     </main>
   )

@@ -2,6 +2,13 @@ import { z } from 'zod'
 
 export const serviceSchema = z.object({
   name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres').max(100),
+  image_url: z
+    .string()
+    .trim()
+    .url('Informe uma URL de imagem valida')
+    .optional()
+    .or(z.literal(''))
+    .transform((value) => value || null),
   price: z
     .string()
     .transform((v) => parseFloat(v.replace(',', '.')))

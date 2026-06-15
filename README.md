@@ -99,6 +99,7 @@ create table if not exists public.services (
   id uuid primary key default gen_random_uuid(),
   barber_id uuid not null references public.barbers(id) on delete cascade,
   name text not null,
+  image_url text,
   price numeric(10, 2) not null default 0,
   duration_minutes integer not null,
   is_active boolean not null default true,
@@ -161,6 +162,15 @@ Se quiser usar upload de logo/foto no perfil do barbeiro:
 2. Va em Storage.
 3. Crie um bucket chamado `logos`.
 4. Deixe o bucket publico se quiser usar as imagens diretamente no app.
+
+### Imagens dos servicos
+
+O formulario de servicos aceita uma URL publica em `image_url`. Se sua tabela `services` foi criada antes dessa versao, rode:
+
+```sql
+alter table public.services
+add column if not exists image_url text;
+```
 
 ## Rodando em desenvolvimento
 

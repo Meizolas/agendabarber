@@ -23,7 +23,7 @@ export function TimeSelector({ slots, selectedTime, onSelect, loading }: TimeSel
     return (
       <div className="premium-card p-8 text-center">
         <Clock3 className="mx-auto mb-3 h-9 w-9 text-[#6B7280]" />
-        <p className="text-sm text-[#9CA3AF]">Nenhum horario disponivel nesta data</p>
+        <p className="text-sm text-[#9CA3AF]">Nenhum horário disponível nesta data</p>
       </div>
     )
   }

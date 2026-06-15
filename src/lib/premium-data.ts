@@ -18,11 +18,11 @@ export const featuredServices = [
     duration: '60 min',
     price: 'R$ 80,00',
     photo: barberPhotos.cut,
-    description: 'Corte personalizado, barba modelada com toalha quente e finalizacao premium.',
+    description: 'Corte personalizado, barba modelada com toalha quente e finalização premium.',
   },
   {
     slug: 'degrade',
-    name: 'Degrade',
+    name: 'Degradê',
     duration: '45 min',
     price: 'R$ 60,00',
     photo: barberPhotos.barber,
@@ -34,7 +34,7 @@ export const featuredServices = [
     duration: '30 min',
     price: 'R$ 40,00',
     photo: barberPhotos.beard,
-    description: 'Desenho, hidratacao e finalizacao para uma barba alinhada sem irritacao.',
+    description: 'Desenho, hidratação e finalização para uma barba alinhada sem irritação.',
   },
   {
     slug: 'tratamento',
@@ -42,7 +42,7 @@ export const featuredServices = [
     duration: '45 min',
     price: 'R$ 90,00',
     photo: barberPhotos.tools,
-    description: 'Cuidado capilar com produtos profissionais e diagnostico rapido.',
+    description: 'Cuidado capilar com produtos profissionais e diagnóstico rápido.',
   },
 ]
 
@@ -76,6 +76,6 @@ export const featuredBarbers = [
 export const categories = [
   { name: 'Corte', icon: 'Scissors' },
   { name: 'Barba', icon: 'Shield' },
-  { name: 'Coloracao', icon: 'Sparkles' },
+  { name: 'Coloração', icon: 'Sparkles' },
   { name: 'Tratamento', icon: 'BadgeCheck' },
 ]

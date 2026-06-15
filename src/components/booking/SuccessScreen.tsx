@@ -36,7 +36,7 @@ export function SuccessScreen({
       <div>
         <h2 className="text-[24px] font-semibold text-white">Agendamento confirmado!</h2>
         <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-[#9CA3AF]">
-          Seu horario foi agendado com sucesso. Em breve voce recebera a confirmacao por WhatsApp.
+          Seu horário foi agendado com sucesso. Em breve você receberá a confirmação por WhatsApp.
         </p>
       </div>
 

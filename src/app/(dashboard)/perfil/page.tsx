@@ -13,16 +13,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/components/ui/use-toast'
 import { PageLoading } from '@/components/shared/LoadingSpinner'
 import { Loader2, Copy, ExternalLink, User, Scissors } from 'lucide-react'
+import { demoBarber } from '@/lib/demo-data'
+import { DEMO_STORAGE_KEY } from '@/lib/demo-session'
 
 export default function PerfilPage() {
   const [barber, setBarber] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [demoMode, setDemoMode] = useState(false)
 
   const supabase = createClient()
   const { toast } = useToast()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+  const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL || ''
 
   const {
     register,
@@ -36,8 +39,24 @@ export default function PerfilPage() {
 
   useEffect(() => {
     const load = async () => {
+      if (window.localStorage.getItem(DEMO_STORAGE_KEY) === 'admin') {
+        setDemoMode(true)
+        setBarber(demoBarber)
+        reset({
+          barbershop_name: demoBarber.barbershop_name,
+          barber_name: demoBarber.barber_name,
+          whatsapp: demoBarber.whatsapp,
+          slug: demoBarber.slug,
+        })
+        setLoading(false)
+        return
+      }
+
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        setLoading(false)
+        return
+      }
 
       const { data } = await supabase.from('barbers').select('*').eq('user_id', user.id).single()
       setBarber(data)
@@ -58,6 +77,13 @@ export default function PerfilPage() {
   const onSubmit = async (data: ProfileInput) => {
     if (!barber) return
     setSaving(true)
+
+    if (demoMode) {
+      setBarber({ ...barber, ...data, slug: data.slug.toLowerCase() })
+      toast({ title: 'Perfil demo atualizado!' })
+      setSaving(false)
+      return
+    }
 
     const { error } = await supabase
       .from('barbers')
@@ -92,8 +118,17 @@ export default function PerfilPage() {
     }
 
     setUploading(true)
+
+    if (demoMode) {
+      const previewUrl = URL.createObjectURL(file)
+      setBarber({ ...barber, logo_url: previewUrl })
+      toast({ title: 'Foto demo atualizada!' })
+      setUploading(false)
+      return
+    }
+
     const ext = file.name.split('.').pop()
-    const path = `${barber.id}.${ext}`
+    const path = `${barber.id}-${Date.now()}.${ext}`
 
     const { error: uploadError } = await supabase.storage.from('logos').upload(path, file, { upsert: true })
 
@@ -109,9 +144,11 @@ export default function PerfilPage() {
   }
 
   const copyLink = () => {
-    const link = `${appUrl}/agendar/${slugValue}`
-    navigator.clipboard.writeText(link)
-    toast({ title: 'Link copiado!' })
+    const baseUrl = configuredAppUrl || window.location.origin
+    const link = `${baseUrl}/agendar/${slugValue || barber?.slug}`
+    navigator.clipboard.writeText(link).then(() => {
+      toast({ title: 'Link copiado!' })
+    })
   }
 
   if (loading) return <PageLoading />
@@ -119,7 +156,7 @@ export default function PerfilPage() {
   return (
     <>
       <Header barber={barber} title="Perfil" />
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-4 sm:p-6">
         <div className="max-w-2xl mx-auto space-y-6">
 
           {/* Link público */}
@@ -136,13 +173,13 @@ export default function PerfilPage() {
             <CardContent>
               <div className="flex items-center gap-2">
                 <div className="flex-1 rounded-md border bg-muted px-3 py-2 text-sm font-mono break-all">
-                  {appUrl}/agendar/{slugValue || barber?.slug}
+                  {(configuredAppUrl || 'http://localhost:3000')}/agendar/{slugValue || barber?.slug}
                 </div>
                 <Button variant="outline" size="icon" onClick={copyLink}>
                   <Copy className="h-4 w-4" />
                 </Button>
                 <Button variant="outline" size="icon" asChild>
-                  <a href={`${appUrl}/agendar/${slugValue || barber?.slug}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`${configuredAppUrl || ''}/agendar/${slugValue || barber?.slug}`} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4" />
                   </a>
                 </Button>
@@ -155,7 +192,7 @@ export default function PerfilPage() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Scissors className="h-4 w-4 text-amber-500" />
-                Logo / Foto
+                Foto de perfil / logo
               </CardTitle>
             </CardHeader>
             <CardContent className="flex items-center gap-4">
@@ -170,7 +207,7 @@ export default function PerfilPage() {
               <div>
                 <Label htmlFor="logo" className="cursor-pointer">
                   <div className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors">
-                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Alterar logo'}
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Alterar foto'}
                   </div>
                 </Label>
                 <Input

@@ -16,6 +16,7 @@ export function ServiceSelector({ services, selectedId, onSelect }: ServiceSelec
       {services.map((service, index) => {
         const selected = service.id === selectedId
         const visual = featuredServices[index % featuredServices.length]
+        const image = service.image_url || visual.photo
 
         return (
           <button
@@ -28,7 +29,7 @@ export function ServiceSelector({ services, selectedId, onSelect }: ServiceSelec
                 : 'border-white/10 bg-[#16181D] hover:border-[#F4B400]/45',
             )}
           >
-            <img src={visual.photo} alt={service.name} className="h-16 w-16 rounded-lg object-cover" />
+            <img src={image} alt={service.name} className="h-16 w-16 rounded-lg object-cover" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <p className="truncate font-semibold text-white">{service.name}</p>
