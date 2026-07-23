@@ -8,7 +8,6 @@ import Link from 'next/link'
 import { Chrome, Eye, EyeOff, Loader2, LockKeyhole, Mail, Scissors } from 'lucide-react'
 import { loginSchema, type LoginInput } from '@/lib/validations/auth'
 import { createClient } from '@/lib/supabase/client'
-import { DEMO_STORAGE_KEY } from '@/lib/demo-session'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,22 +30,7 @@ export function LoginForm() {
   const onSubmit = async (data: LoginInput) => {
     setLoading(true)
 
-    const demoResponse = await fetch('/api/demo-login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-
-    if (demoResponse.ok) {
-      const demo = await demoResponse.json()
-      window.localStorage.setItem(DEMO_STORAGE_KEY, demo.role)
-      toast({ title: 'Login de teste ativo', description: demo.role === 'admin' ? 'Entrando no painel admin.' : 'Entrando como cliente.' })
-      router.replace(demo.redirectTo)
-      router.refresh()
-      return
-    }
-
-    const { data: authData, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     })
@@ -63,13 +47,7 @@ export function LoginForm() {
       return
     }
 
-    const { data: barber } = await supabase
-      .from('barbers')
-      .select('id')
-      .eq('user_id', authData.user.id)
-      .maybeSingle()
-
-    router.replace(barber ? '/dashboard' : '/')
+    router.replace('/dashboard')
     router.refresh()
   }
 

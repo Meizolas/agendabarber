@@ -1,44 +1,34 @@
-import { addMinutes, format, parse, isBefore, isAfter } from 'date-fns'
+import { addMinutes, format, isAfter, parse } from 'date-fns'
 
-/**
- * Gera lista de horários disponíveis para uma data específica,
- * considerando regras de disponibilidade, horários bloqueados e agendamentos existentes.
- */
+export interface OccupiedInterval {
+  start: string
+  durationMinutes: number
+}
+
 export function generateTimeSlots(
-  startTime: string, // "HH:MM"
-  endTime: string,   // "HH:MM"
+  startTime: string,
+  endTime: string,
   intervalMinutes: number,
   durationMinutes: number,
-  bookedTimes: string[],     // ["HH:MM", ...]
-  blockedTimes: string[],    // ["HH:MM", ...] - horários específicos bloqueados
+  occupiedIntervals: OccupiedInterval[],
+  blockedTimes: string[],
 ): string[] {
   const slots: string[] = []
-  const baseDate = new Date(2000, 0, 1) // data fictícia para parsing
-
+  const baseDate = new Date(2000, 0, 1)
   let current = parse(startTime, 'HH:mm', baseDate)
   const end = parse(endTime, 'HH:mm', baseDate)
-
-  // O último slot possível deve terminar antes ou no horário final
   const lastPossibleStart = addMinutes(end, -durationMinutes)
 
   while (!isAfter(current, lastPossibleStart)) {
     const slotStr = format(current, 'HH:mm')
     const slotEnd = addMinutes(current, durationMinutes)
-
-    // Verificar se o slot não conflita com horários ocupados
-    const isBooked = bookedTimes.some((booked) => {
-      const bookedTime = parse(booked, 'HH:mm', baseDate)
-      // Conflita se o horário agendado está dentro da janela do slot
-      return !isBefore(bookedTime, current) && isBefore(bookedTime, slotEnd)
+    const isBooked = occupiedIntervals.some((occupied) => {
+      const occupiedStart = parse(occupied.start, 'HH:mm', baseDate)
+      const occupiedEnd = addMinutes(occupiedStart, occupied.durationMinutes)
+      return current < occupiedEnd && slotEnd > occupiedStart
     })
 
-    // Verificar se está na lista de bloqueados
-    const isBlocked = blockedTimes.includes(slotStr)
-
-    if (!isBooked && !isBlocked) {
-      slots.push(slotStr)
-    }
-
+    if (!isBooked && !blockedTimes.includes(slotStr)) slots.push(slotStr)
     current = addMinutes(current, intervalMinutes)
   }
 
@@ -46,12 +36,12 @@ export function generateTimeSlots(
 }
 
 export function timeToMinutes(time: string): number {
-  const [h, m] = time.split(':').map(Number)
-  return h * 60 + m
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + minutes
 }
 
 export function minutesToTime(minutes: number): string {
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  return `${String(hours).padStart(2, '0')}:${String(remainingMinutes).padStart(2, '0')}`
 }

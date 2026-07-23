@@ -1,15 +1,18 @@
-import { Barber } from '@/types'
+import { Appointment, Barber } from '@/types'
 import { ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { NotificationBell } from '@/components/dashboard/NotificationBell'
+import { getPublicAppUrl } from '@/lib/utils/app-url'
 
 interface HeaderProps {
   barber: Barber | null
   title: string
+  notifications?: Appointment[]
 }
 
-export function Header({ barber, title }: HeaderProps) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+export function Header({ barber, title, notifications }: HeaderProps) {
+  const appUrl = getPublicAppUrl()
 
   return (
     <header className="flex items-center justify-between gap-3 border-b border-white/10 bg-[#101214]/85 px-4 py-4 pl-16 backdrop-blur-xl sm:px-6 lg:pl-6">
@@ -19,6 +22,7 @@ export function Header({ barber, title }: HeaderProps) {
       </div>
       {barber && (
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          {notifications && <NotificationBell appointments={notifications} />}
           <div className="hidden sm:block text-right">
             <p className="text-sm font-medium text-white">{barber.barber_name}</p>
             <p className="text-xs text-[#9CA3AF]">{barber.barbershop_name}</p>

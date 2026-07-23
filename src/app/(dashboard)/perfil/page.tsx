@@ -1,31 +1,26 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { createClient } from '@/lib/supabase/client'
-import { profileSchema, type ProfileInput } from '@/lib/validations/profile'
+import { Copy, ExternalLink, Loader2, Scissors, User } from 'lucide-react'
 import { Header } from '@/components/dashboard/Header'
+import { PageLoading } from '@/components/shared/LoadingSpinner'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
-import { PageLoading } from '@/components/shared/LoadingSpinner'
-import { Loader2, Copy, ExternalLink, User, Scissors } from 'lucide-react'
-import { demoBarber } from '@/lib/demo-data'
-import { DEMO_STORAGE_KEY } from '@/lib/demo-session'
+import { profileSchema, type ProfileInput } from '@/lib/validations/profile'
+import type { Barber } from '@/types'
 
 export default function PerfilPage() {
-  const [barber, setBarber] = useState<any>(null)
+  const [barber, setBarber] = useState<Barber | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [demoMode, setDemoMode] = useState(false)
-
-  const supabase = createClient()
+  const [browserOrigin, setBrowserOrigin] = useState('')
   const { toast } = useToast()
-  const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+  const configuredAppUrl = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')
 
   const {
     register,
@@ -38,114 +33,74 @@ export default function PerfilPage() {
   const slugValue = watch('slug', '')
 
   useEffect(() => {
+    setBrowserOrigin(window.location.origin)
     const load = async () => {
-      if (window.localStorage.getItem(DEMO_STORAGE_KEY) === 'admin') {
-        setDemoMode(true)
-        setBarber(demoBarber)
-        reset({
-          barbershop_name: demoBarber.barbershop_name,
-          barber_name: demoBarber.barber_name,
-          whatsapp: demoBarber.whatsapp,
-          slug: demoBarber.slug,
-        })
+      const response = await fetch('/api/profile')
+
+      if (!response.ok) {
         setLoading(false)
         return
       }
 
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setLoading(false)
-        return
-      }
+      const { barber } = await response.json()
+      setBarber(barber)
 
-      const { data } = await supabase.from('barbers').select('*').eq('user_id', user.id).single()
-      setBarber(data)
-
-      if (data) {
+      if (barber) {
         reset({
-          barbershop_name: data.barbershop_name,
-          barber_name: data.barber_name,
-          whatsapp: data.whatsapp,
-          slug: data.slug,
+          barbershop_name: barber.barbershop_name,
+          barber_name: barber.barber_name,
+          whatsapp: barber.whatsapp,
+          slug: barber.slug,
         })
       }
+
       setLoading(false)
     }
+
     load()
-  }, [])
+  }, [reset])
 
   const onSubmit = async (data: ProfileInput) => {
-    if (!barber) return
     setSaving(true)
 
-    if (demoMode) {
-      setBarber({ ...barber, ...data, slug: data.slug.toLowerCase() })
-      toast({ title: 'Perfil demo atualizado!' })
-      setSaving(false)
-      return
-    }
-
-    const { error } = await supabase
-      .from('barbers')
-      .update({
+    const response = await fetch('/api/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         barbershop_name: data.barbershop_name,
         barber_name: data.barber_name,
         whatsapp: data.whatsapp,
         slug: data.slug.toLowerCase(),
+      }),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      toast({
+        title: 'Erro ao salvar',
+        description: result.error ?? 'Nao foi possivel salvar seu perfil.',
+        variant: 'destructive',
       })
-      .eq('id', barber.id)
-
-    if (error) {
-      if (error.code === '23505') {
-        toast({ title: 'Link já em uso', description: 'Escolha outro link público.', variant: 'destructive' })
-      } else {
-        toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' })
-      }
-    } else {
-      toast({ title: 'Perfil atualizado!' })
-      setBarber({ ...barber, ...data, slug: data.slug.toLowerCase() })
+      setSaving(false)
+      return
     }
+
+    setBarber(result.barber)
+    reset({
+      barbershop_name: result.barber.barbershop_name,
+      barber_name: result.barber.barber_name,
+      whatsapp: result.barber.whatsapp,
+      slug: result.barber.slug,
+    })
+    toast({ title: 'Perfil atualizado!' })
     setSaving(false)
-  }
-
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !barber) return
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: 'Arquivo muito grande', description: 'Máximo 2MB', variant: 'destructive' })
-      return
-    }
-
-    setUploading(true)
-
-    if (demoMode) {
-      const previewUrl = URL.createObjectURL(file)
-      setBarber({ ...barber, logo_url: previewUrl })
-      toast({ title: 'Foto demo atualizada!' })
-      setUploading(false)
-      return
-    }
-
-    const ext = file.name.split('.').pop()
-    const path = `${barber.id}-${Date.now()}.${ext}`
-
-    const { error: uploadError } = await supabase.storage.from('logos').upload(path, file, { upsert: true })
-
-    if (uploadError) {
-      toast({ title: 'Erro no upload', description: uploadError.message, variant: 'destructive' })
-    } else {
-      const { data: { publicUrl } } = supabase.storage.from('logos').getPublicUrl(path)
-      await supabase.from('barbers').update({ logo_url: publicUrl }).eq('id', barber.id)
-      setBarber({ ...barber, logo_url: publicUrl })
-      toast({ title: 'Logo atualizada!' })
-    }
-    setUploading(false)
   }
 
   const copyLink = () => {
     const baseUrl = configuredAppUrl || window.location.origin
-    const link = `${baseUrl}/agendar/${slugValue || barber?.slug}`
+    const link = `${baseUrl}/agendar/${slugValue || barber?.slug || ''}`
+
     navigator.clipboard.writeText(link).then(() => {
       toast({ title: 'Link copiado!' })
     })
@@ -153,33 +108,32 @@ export default function PerfilPage() {
 
   if (loading) return <PageLoading />
 
+  const publicSlug = slugValue || barber?.slug || ''
+  const publicLink = publicSlug ? `${configuredAppUrl || browserOrigin}/agendar/${publicSlug}` : 'Complete seu perfil para gerar o link'
+
   return (
     <>
       <Header barber={barber} title="Perfil" />
       <div className="flex-1 p-4 sm:p-6">
-        <div className="max-w-2xl mx-auto space-y-6">
-
-          {/* Link público */}
+        <div className="mx-auto max-w-2xl space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <ExternalLink className="h-4 w-4 text-amber-500" />
-                Seu link público
+                Seu link publico
               </CardTitle>
-              <CardDescription>
-                Compartilhe este link na bio do Instagram
-              </CardDescription>
+              <CardDescription>Compartilhe este link com seus clientes.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <div className="flex-1 rounded-md border bg-muted px-3 py-2 text-sm font-mono break-all">
-                  {(configuredAppUrl || 'http://localhost:3000')}/agendar/{slugValue || barber?.slug}
+                <div className="flex-1 break-all rounded-md border bg-muted px-3 py-2 font-mono text-sm">
+                  {publicLink}
                 </div>
-                <Button variant="outline" size="icon" onClick={copyLink}>
+                <Button variant="outline" size="icon" onClick={copyLink} disabled={!publicSlug}>
                   <Copy className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon" asChild>
-                  <a href={`${configuredAppUrl || ''}/agendar/${slugValue || barber?.slug}`} target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="icon" asChild disabled={!publicSlug}>
+                  <a href={`/agendar/${publicSlug}`} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4" />
                   </a>
                 </Button>
@@ -187,57 +141,23 @@ export default function PerfilPage() {
             </CardContent>
           </Card>
 
-          {/* Logo */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <Scissors className="h-4 w-4 text-amber-500" />
-                Foto de perfil / logo
+                Identidade da barbearia
               </CardTitle>
-            </CardHeader>
-            <CardContent className="flex items-center gap-4">
-              <div className="h-20 w-20 rounded-full border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden">
-                {barber?.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={barber.logo_url} alt="Logo" className="h-full w-full object-cover" />
-                ) : (
-                  <Scissors className="h-8 w-8 text-slate-300" />
-                )}
-              </div>
-              <div>
-                <Label htmlFor="logo" className="cursor-pointer">
-                  <div className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted transition-colors">
-                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Alterar foto'}
-                  </div>
-                </Label>
-                <Input
-                  id="logo"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleLogoUpload}
-                />
-                <p className="text-xs text-muted-foreground mt-1">PNG, JPG até 2MB</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Profile form */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <User className="h-4 w-4 text-amber-500" />
-                Informações
-              </CardTitle>
+              <CardDescription>Essas informacoes aparecem no painel e no link publico.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="barber_name">Seu nome</Label>
                     <Input id="barber_name" {...register('barber_name')} />
                     {errors.barber_name && <p className="text-sm text-red-500">{errors.barber_name.message}</p>}
                   </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="barbershop_name">Nome da barbearia</Label>
                     <Input id="barbershop_name" {...register('barbershop_name')} />
@@ -252,8 +172,8 @@ export default function PerfilPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="slug">Link público</Label>
-                  <div className="flex items-center gap-0">
+                  <Label htmlFor="slug">Link publico</Label>
+                  <div className="flex items-center">
                     <span className="flex h-10 items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
                       /agendar/
                     </span>
@@ -263,11 +183,20 @@ export default function PerfilPage() {
                 </div>
 
                 <Button type="submit" className="w-full bg-amber-500 hover:bg-amber-600" disabled={saving}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar alterações'}
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar alteracoes'}
                 </Button>
               </form>
             </CardContent>
           </Card>
+
+          {!barber && (
+            <Card>
+              <CardContent className="flex items-start gap-3 p-4 text-sm text-muted-foreground">
+                <User className="mt-0.5 h-4 w-4 text-amber-500" />
+                <p>Seu usuario existe, mas o perfil da barbearia ainda nao foi criado. Preencha os dados acima para concluir.</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </>

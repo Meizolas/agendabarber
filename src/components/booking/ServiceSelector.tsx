@@ -1,8 +1,7 @@
 import { Service } from '@/types'
 import { formatPrice, formatDuration } from '@/lib/utils/format'
-import { Check, Clock3 } from 'lucide-react'
+import { Check, Clock3, ImageIcon, Scissors } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
-import { featuredServices } from '@/lib/premium-data'
 
 interface ServiceSelectorProps {
   services: Service[]
@@ -13,10 +12,8 @@ interface ServiceSelectorProps {
 export function ServiceSelector({ services, selectedId, onSelect }: ServiceSelectorProps) {
   return (
     <div className="space-y-3">
-      {services.map((service, index) => {
+      {services.map((service) => {
         const selected = service.id === selectedId
-        const visual = featuredServices[index % featuredServices.length]
-        const image = service.image_url || visual.photo
 
         return (
           <button
@@ -29,7 +26,7 @@ export function ServiceSelector({ services, selectedId, onSelect }: ServiceSelec
                 : 'border-white/10 bg-[#16181D] hover:border-[#F4B400]/45',
             )}
           >
-            <img src={image} alt={service.name} className="h-16 w-16 rounded-lg object-cover" />
+            <ServiceThumb service={service} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <p className="truncate font-semibold text-white">{service.name}</p>
@@ -50,6 +47,27 @@ export function ServiceSelector({ services, selectedId, onSelect }: ServiceSelec
           </button>
         )
       })}
+    </div>
+  )
+}
+
+function ServiceThumb({ service }: { service: Service }) {
+  if (service.image_url) {
+    return (
+      <img
+        src={service.image_url}
+        alt={service.name}
+        className="h-16 w-16 shrink-0 rounded-lg object-cover"
+      />
+    )
+  }
+
+  return (
+    <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg border border-white/10 bg-[#101214] text-[#F4B400]">
+      <div className="flex flex-col items-center gap-1">
+        <Scissors className="h-5 w-5" />
+        <ImageIcon className="h-3.5 w-3.5 text-[#6B7280]" />
+      </div>
     </div>
   )
 }

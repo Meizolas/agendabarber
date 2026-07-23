@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Appointment, STATUS_LABELS, STATUS_COLORS } from '@/types'
 import { Header } from '@/components/dashboard/Header'
 import { Button } from '@/components/ui/button'
@@ -11,7 +10,7 @@ import { AppointmentCard } from '@/components/dashboard/AppointmentCard'
 import { useToast } from '@/components/ui/use-toast'
 import { PageLoading } from '@/components/shared/LoadingSpinner'
 import { CalendarCheck, Filter } from 'lucide-react'
-import { format } from 'date-fns'
+import { getSaoPauloDate } from '@/lib/utils/timezone'
 import {
   Select,
   SelectContent,
@@ -27,7 +26,11 @@ export default function AgendamentosPage() {
   const [barber, setBarber] = useState<any>(null)
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = getSaoPauloDate()
+    if (typeof window === 'undefined') return today
+    return new URLSearchParams(window.location.search).get('date') ?? today
+  })
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [actionDialog, setActionDialog] = useState<{
     open: boolean; id: string | null; action: 'cancelled' | 'completed' | null
@@ -35,11 +38,10 @@ export default function AgendamentosPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
 
-  const supabase = createClient()
   const { toast } = useToast()
 
   const loadData = useCallback(async () => {
-    if (window.localStorage.getItem(DEMO_STORAGE_KEY) === 'admin') {
+    if (false && window.localStorage.getItem(DEMO_STORAGE_KEY) === 'admin') {
       setDemoMode(true)
       setBarber(demoBarber)
       const demoAppointments: Appointment[] = [
@@ -65,31 +67,22 @@ export default function AgendamentosPage() {
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setLoading(false)
-      return
-    }
+    const params = new URLSearchParams({ date: selectedDate, status: statusFilter })
+    const response = await fetch(`/api/appointments?${params.toString()}`)
+    const payload = await response.json()
 
-    const { data: barberData } = await supabase
-      .from('barbers').select('*').eq('user_id', user.id).single()
-    setBarber(barberData)
-
-    if (barberData) {
-      let query = supabase
-        .from('appointments')
-        .select('*, service:services(*)')
-        .eq('barber_id', barberData.id)
-        .eq('appointment_date', selectedDate)
-        .order('appointment_time', { ascending: true })
-
-      if (statusFilter !== 'all') query = query.eq('status', statusFilter)
-
-      const { data } = await query
-      setAppointments((data as Appointment[]) ?? [])
+    if (!response.ok) {
+      toast({
+        title: 'Erro ao carregar agendamentos',
+        description: payload.error ?? 'Tente novamente.',
+        variant: 'destructive',
+      })
+    } else {
+      setBarber(payload.barber)
+      setAppointments((payload.appointments as Appointment[]) ?? [])
     }
     setLoading(false)
-  }, [selectedDate, statusFilter])
+  }, [selectedDate, statusFilter, toast])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -111,13 +104,15 @@ export default function AgendamentosPage() {
       return
     }
 
-    const { error } = await supabase
-      .from('appointments')
-      .update({ status: actionDialog.action })
-      .eq('id', actionDialog.id)
+    const response = await fetch(`/api/appointments/${actionDialog.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: actionDialog.action }),
+    })
+    const payload = await response.json()
 
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+    if (!response.ok) {
+      toast({ title: 'Erro', description: payload.error ?? 'Tente novamente.', variant: 'destructive' })
     } else {
       toast({
         title: actionDialog.action === 'cancelled' ? 'Agendamento cancelado' : 'Agendamento concluído',

@@ -6,7 +6,8 @@ export const profileSchema = z.object({
   whatsapp: z
     .string()
     .min(10, 'WhatsApp inválido')
-    .transform((v) => v.replace(/\D/g, '')),
+    .transform((v) => v.replace(/\D/g, ''))
+    .refine((v) => v.length >= 10 && v.length <= 13, 'WhatsApp invalido'),
   slug: z
     .string()
     .min(3, 'Link deve ter no mínimo 3 caracteres')

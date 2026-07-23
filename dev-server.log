@@ -48,3 +48,117 @@
  ✓ Compiled /cliente/servicos/[slug] in 153ms (742 modules)
  ✓ Compiled /agendar/[slug] in 221ms (1405 modules)
  GET /_next/static/chunks/app/agendar/%5Bslug%5D/LayoutGroupContext.mjs.map 404 in 67ms
+ ✓ Compiled in 2.4s (2936 modules)
+ ✓ Compiled (2922 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (102kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (244kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ⨯ ./src/app/globals.css.webpack[javascript/auto]!=!./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[12].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[13].oneOf[12].use[3]!./src/app/globals.css
+Error: ENOENT: no such file or directory, stat 'D:\VS-Code\AgendBarber\src\app\cliente\servicos\page.tsx'
+Import trace for requested module:
+./src/app/globals.css.webpack[javascript/auto]!=!./node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[12].use[2]!./node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[13].oneOf[12].use[3]!./src/app/globals.css
+./src/app/globals.css
+ ✓ Compiled in 656ms (2835 modules)
+ ✓ Compiled in 12ms
+ ⨯ ./src/lib/demo-session.ts
+Error: Failed to read source code from D:\VS-Code\AgendBarber\src\lib\demo-session.ts
+
+Caused by:
+    O sistema não pode encontrar o arquivo especificado. (os error 2)
+
+Import trace for requested module:
+./src/lib/demo-session.ts
+./src/components/auth/LoginForm.tsx
+ ✓ Compiled in 245ms (1389 modules)
+ ✓ Compiled in 541ms (1389 modules)
+ ✓ Compiled in 415ms (1389 modules)
+ ✓ Compiled /src/middleware in 184ms (126 modules)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 910ms (2730 modules)
+ GET /login 200 in 1098ms
+ GET /agendar/demo 200 in 107ms
+ GET /login 200 in 24ms
+ ⨯ Failed to generate static paths for /agendar/[slug]:
+Error: Cannot find module './vendor-chunks/@supabase.js'
+Require stack:
+- D:\VS-Code\AgendBarber\.next\server\webpack-runtime.js
+- D:\VS-Code\AgendBarber\.next\server\app\agendar\[slug]\page.js
+- D:\VS-Code\AgendBarber\node_modules\next\dist\server\require.js
+- D:\VS-Code\AgendBarber\node_modules\next\dist\server\load-components.js
+- D:\VS-Code\AgendBarber\node_modules\next\dist\build\utils.js
+- D:\VS-Code\AgendBarber\node_modules\next\dist\server\dev\static-paths-worker.js
+- D:\VS-Code\AgendBarber\node_modules\next\dist\compiled\jest-worker\processChild.js
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1456:15)
+    at D:\VS-Code\AgendBarber\node_modules\next\dist\server\require-hook.js:55:36
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1066:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1071:22)
+    at Module._load (node:internal/modules/cjs/loader:1242:25)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1556:12)
+    at mod.require (D:\VS-Code\AgendBarber\node_modules\next\dist\server\require-hook.js:65:28)
+    at require (node:internal/modules/helpers:152:16)
+    at __webpack_require__.f.require (D:\VS-Code\AgendBarber\.next\server\webpack-runtime.js:198:28) {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    'D:\\VS-Code\\AgendBarber\\.next\\server\\webpack-runtime.js',
+    'D:\\VS-Code\\AgendBarber\\.next\\server\\app\\agendar\\[slug]\\page.js',
+    'D:\\VS-Code\\AgendBarber\\node_modules\\next\\dist\\server\\require.js',
+    'D:\\VS-Code\\AgendBarber\\node_modules\\next\\dist\\server\\load-components.js',
+    'D:\\VS-Code\\AgendBarber\\node_modules\\next\\dist\\build\\utils.js',
+    'D:\\VS-Code\\AgendBarber\\node_modules\\next\\dist\\server\\dev\\static-paths-worker.js',
+    'D:\\VS-Code\\AgendBarber\\node_modules\\next\\dist\\compiled\\jest-worker\\processChild.js'
+  ]
+}
+ ✓ Compiled /cadastro in 383ms (1365 modules)
+ GET /cadastro 200 in 527ms
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (102kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (244kiB) impacts deserialization performance (consider using Buffer instead and decode when needed)
+ ⨯ ./src/components/booking/ServiceSelector.tsx
+Error: Failed to read source code from D:\VS-Code\AgendBarber\src\components\booking\ServiceSelector.tsx
+
+Caused by:
+    O sistema não pode encontrar o arquivo especificado. (os error 2)
+
+Import trace for requested module:
+./src/components/booking/ServiceSelector.tsx
+./src/app/agendar/[slug]/page.tsx
+ ✓ Compiled in 1419ms (2711 modules)
+ ✓ Compiled in 1245ms (2711 modules)
+ ✓ Compiled in 854ms (2711 modules)
+ ⨯ ./src/lib/utils/open-status.ts
+Error: Failed to read source code from D:\VS-Code\AgendBarber\src\lib\utils\open-status.ts
+
+Caused by:
+    O sistema não pode encontrar o arquivo especificado. (os error 2)
+
+Import trace for requested module:
+./src/lib/utils/open-status.ts
+./src/app/agendar/[slug]/page.tsx
+ ✓ Compiled in 691ms (2697 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: EPERM: operation not permitted, rename 'D:\VS-Code\AgendBarber\.next\cache\webpack\server-development\12.pack.gz_' -> 'D:\VS-Code\AgendBarber\.next\cache\webpack\server-development\12.pack.gz'
+ ✓ Compiled in 5.9s (2837 modules)
+ ✓ Compiled in 1191ms (2715 modules)
+ ✓ Compiled in 338ms (1392 modules)
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 3.5s (3417 modules)
+ GET /_next/static/css/app/layout.css?v=1781580846744 404 in 3691ms
+ GET /_next/static/chunks/webpack.js?v=1781580846744 404 in 3856ms
+ GET /dashboard 200 in 3917ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 19ms
+ ✓ Compiled in 3.5s (2854 modules)
+ ✓ Compiled in 264ms (1405 modules)
+ ✓ Compiled in 408ms (1405 modules)
+ ✓ Compiled in 437ms (1405 modules)
+ ✓ Compiled in 338ms (1405 modules)
+ ✓ Compiled in 374ms (1405 modules)
+ ✓ Compiled in 347ms (1405 modules)
+ ✓ Compiled in 278ms (1405 modules)
+ ✓ Compiled in 248ms (1405 modules)
+ ✓ Compiled in 344ms (1405 modules)
+ ✓ Compiled in 1727ms (1529 modules)
+ ✓ Compiled in 268ms (1404 modules)
+ ✓ Compiled in 408ms (1404 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'D:\VS-Code\AgendBarber\.next\cache\webpack\edge-server-development\1.pack.gz_' -> 'D:\VS-Code\AgendBarber\.next\cache\webpack\edge-server-development\1.pack.gz'
+ ✓ Compiled in 629ms (1403 modules)
+ ✓ Compiled in 2.3s (2726 modules)
+[?25h

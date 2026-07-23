@@ -12,7 +12,8 @@ const clientSchema = z.object({
   client_whatsapp: z
     .string()
     .min(10, 'WhatsApp invalido')
-    .transform((v) => v.replace(/\D/g, '')),
+    .transform((v) => v.replace(/\D/g, ''))
+    .refine((v) => v.length >= 10 && v.length <= 13, 'WhatsApp invalido'),
   notes: z.string().max(300).optional(),
 })
 

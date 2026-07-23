@@ -1,6 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { DEMO_ROLE_COOKIE, getDemoRedirect } from '@/lib/demo-session'
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -25,14 +24,12 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-
   const pathname = request.nextUrl.pathname
-  const demoRole = request.cookies.get(DEMO_ROLE_COOKIE)?.value
-  const isAuthenticated = Boolean(user || demoRole)
+  const hasAdminSession = Boolean(user)
+
   const isAuthRoute = pathname === '/login' || pathname === '/cadastro'
   const isPublicBookingRoute = pathname.startsWith('/agendar')
-
-  // Rotas protegidas do dashboard
+  const isLegacyClientRoute = pathname.startsWith('/cliente') || pathname === '/onboarding'
   const isDashboardRoute = [
     '/dashboard',
     '/servicos',
@@ -40,28 +37,21 @@ export async function middleware(request: NextRequest) {
     '/agendamentos',
     '/perfil',
   ].some((route) => pathname.startsWith(route))
-  const isClientRoute = pathname === '/' || pathname.startsWith('/cliente')
 
-  if ((pathname === '/onboarding' || isAuthRoute) && isAuthenticated) {
-    return NextResponse.redirect(new URL(demoRole ? getDemoRedirect(demoRole) : '/dashboard', request.url))
+  if (pathname === '/') {
+    return NextResponse.redirect(new URL(hasAdminSession ? '/dashboard' : '/login', request.url))
   }
 
-  if ((isClientRoute || isDashboardRoute) && !isAuthenticated && !isPublicBookingRoute) {
-    return NextResponse.redirect(new URL('/onboarding', request.url))
+  if (isLegacyClientRoute) {
+    return NextResponse.redirect(new URL(hasAdminSession ? '/dashboard' : '/login', request.url))
   }
 
-  // Redirecionar para login se não autenticado em rota protegida
-  if (isDashboardRoute && !user && demoRole !== 'admin') {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  if (isDashboardRoute && demoRole === 'client') {
-    return NextResponse.redirect(new URL('/', request.url))
-  }
-
-  // Redirecionar para dashboard se já autenticado nas páginas de auth
-  if (isAuthRoute && user) {
+  if (isAuthRoute && hasAdminSession) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  if (isDashboardRoute && !hasAdminSession && !isPublicBookingRoute) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return supabaseResponse

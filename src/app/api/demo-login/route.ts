@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Credenciais de teste invalidas' }, { status: 401 })
   }
 
-  const response = NextResponse.json({ role, redirectTo: getDemoRedirect(role) })
+  const response = NextResponse.json({ role, redirectTo: getDemoRedirect() })
   const maxAge = 60 * 60 * 24 * 7
 
   response.cookies.set(DEMO_ROLE_COOKIE, role, {

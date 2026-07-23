@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { AvailabilityRule, BlockedTime, DAY_NAMES } from '@/types'
 import { AvailabilityForm } from '@/components/schedule/AvailabilityForm'
 import { BlockTimeForm } from '@/components/schedule/BlockTimeForm'
@@ -28,11 +27,10 @@ export default function HorariosPage() {
   const [deleteBlockId, setDeleteBlockId] = useState<string | null>(null)
   const [demoMode, setDemoMode] = useState(false)
 
-  const supabase = createClient()
   const { toast } = useToast()
 
   const loadData = useCallback(async () => {
-    if (window.localStorage.getItem(DEMO_STORAGE_KEY) === 'admin') {
+    if (false && window.localStorage.getItem(DEMO_STORAGE_KEY) === 'admin') {
       setDemoMode(true)
       setBarber(demoBarber)
       setRules((current) => current.length ? current : demoRules)
@@ -41,21 +39,22 @@ export default function HorariosPage() {
       return
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const profileResponse = await fetch('/api/profile')
+    if (!profileResponse.ok) {
       setLoading(false)
       return
     }
 
-    const { data: barberData } = await supabase
-      .from('barbers').select('*').eq('user_id', user.id).single()
+    const { barber: barberData } = await profileResponse.json()
     setBarber(barberData)
 
     if (barberData) {
-      const [{ data: rulesData }, { data: blockedData }] = await Promise.all([
-        supabase.from('availability_rules').select('*').eq('barber_id', barberData.id).order('day_of_week'),
-        supabase.from('blocked_times').select('*').eq('barber_id', barberData.id).order('blocked_date'),
+      const [rulesResponse, blockedResponse] = await Promise.all([
+        fetch('/api/availability'),
+        fetch('/api/blocked-times'),
       ])
+      const rulesData = rulesResponse.ok ? (await rulesResponse.json()).rules : []
+      const blockedData = blockedResponse.ok ? (await blockedResponse.json()).blocked : []
       setRules(rulesData ?? [])
       setBlockedTimes(blockedData ?? [])
     }
@@ -88,15 +87,19 @@ export default function HorariosPage() {
       return
     }
 
-    const { error } = await supabase.from('availability_rules').insert({
-      barber_id: barber.id,
+    const response = await fetch('/api/availability', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
       day_of_week: Number(data.day_of_week),
       start_time: data.start_time,
       end_time: data.end_time,
       interval_minutes: Number(data.interval_minutes),
+      }),
     })
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+    const result = await response.json()
+    if (!response.ok) {
+      toast({ title: 'Erro', description: result.error ?? 'Nao foi possivel salvar.', variant: 'destructive' })
     } else {
       toast({ title: 'Dia de atendimento adicionado!' })
       setAvailFormOpen(false)
@@ -127,14 +130,18 @@ export default function HorariosPage() {
       return
     }
 
-    const { error } = await supabase.from('blocked_times').insert({
-      barber_id: barber.id,
+    const response = await fetch('/api/blocked-times', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
       blocked_date: data.blocked_date,
       blocked_time: data.blocked_time || null,
       reason: data.reason || null,
+      }),
     })
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+    const result = await response.json()
+    if (!response.ok) {
+      toast({ title: 'Erro', description: result.error ?? 'Nao foi possivel salvar.', variant: 'destructive' })
     } else {
       toast({ title: 'Horário bloqueado!' })
       setBlockFormOpen(false)
@@ -152,9 +159,10 @@ export default function HorariosPage() {
       return
     }
 
-    const { error } = await supabase.from('availability_rules').delete().eq('id', deleteRuleId)
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+    const response = await fetch(`/api/availability?id=${deleteRuleId}`, { method: 'DELETE' })
+    const result = await response.json()
+    if (!response.ok) {
+      toast({ title: 'Erro', description: result.error ?? 'Nao foi possivel remover.', variant: 'destructive' })
     } else {
       toast({ title: 'Dia removido!' })
       setDeleteRuleId(null)
@@ -171,9 +179,10 @@ export default function HorariosPage() {
       return
     }
 
-    const { error } = await supabase.from('blocked_times').delete().eq('id', deleteBlockId)
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+    const response = await fetch(`/api/blocked-times?id=${deleteBlockId}`, { method: 'DELETE' })
+    const result = await response.json()
+    if (!response.ok) {
+      toast({ title: 'Erro', description: result.error ?? 'Nao foi possivel remover.', variant: 'destructive' })
     } else {
       toast({ title: 'Bloqueio removido!' })
       setDeleteBlockId(null)

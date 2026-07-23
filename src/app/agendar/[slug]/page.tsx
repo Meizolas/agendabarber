@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { createClient } from '@/lib/supabase/client'
 import { Barber, Service, AvailabilityRule } from '@/types'
 import { ServiceSelector } from '@/components/booking/ServiceSelector'
 import { DateSelector } from '@/components/booking/DateSelector'
@@ -13,9 +12,11 @@ import { SuccessScreen } from '@/components/booking/SuccessScreen'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { BrandMark } from '@/components/premium/BrandMark'
 import { barberPhotos } from '@/lib/premium-data'
-import { ChevronLeft, Clock3, MapPin, Scissors, ShieldCheck } from 'lucide-react'
-import { formatDate, formatPrice, formatTime } from '@/lib/utils/format'
+import { ChevronLeft, Clock3, MessageCircle, Scissors, ShieldCheck } from 'lucide-react'
+import { formatDate, formatPrice, formatTime, formatWhatsApp } from '@/lib/utils/format'
 import { getOpenStatus } from '@/lib/utils/open-status'
+import { getStoredDemoServices } from '@/lib/demo-store'
+import { useToast } from '@/components/ui/use-toast'
 
 type Step = 'service' | 'date' | 'time' | 'client' | 'success'
 
@@ -77,39 +78,30 @@ export default function BookingPage() {
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const supabase = createClient()
+  const { toast } = useToast()
 
   useEffect(() => {
     const load = async () => {
-      if (slug === 'demo') {
-        setBarber(demoBarber)
-        setServices(demoServices)
-        setRules(demoRules)
-        setLoading(false)
-        return
-      }
-
-      const { data: barberData } = await supabase
-        .from('barbers')
-        .select('*')
-        .eq('slug', slug)
-        .single()
+      const response = await fetch(`/api/public/barbers/${encodeURIComponent(slug)}`)
+      const payload = await response.json().catch(() => null)
+      const barberData = response.ok ? payload?.barber : null
 
       if (!barberData) {
-        setNotFound(true)
+        if (slug === 'demo') {
+          setBarber(demoBarber)
+          setServices(getStoredDemoServices().filter((service) => service.is_active))
+          setRules(demoRules)
+        } else {
+          setNotFound(true)
+        }
         setLoading(false)
         return
       }
 
       setBarber(barberData)
 
-      const [{ data: svcs }, { data: rulesData }] = await Promise.all([
-        supabase.from('services').select('*').eq('barber_id', barberData.id).eq('is_active', true),
-        supabase.from('availability_rules').select('*').eq('barber_id', barberData.id).eq('is_active', true),
-      ])
-
-      setServices(svcs ?? [])
-      setRules(rulesData ?? [])
+      setServices(payload.services ?? [])
+      setRules(payload.rules ?? [])
       setLoading(false)
     }
 
@@ -160,6 +152,11 @@ export default function BookingPage() {
     setSubmitting(true)
 
     if (barber.id === 'demo') {
+      toast({
+        title: 'Modo demo',
+        description: 'Este link e apenas demonstrativo e nao grava no Supabase. Use o link publico do seu perfil real.',
+        variant: 'destructive',
+      })
       setBooking((current) => ({ ...current, clientName: clientData.client_name }))
       setStep('success')
       setSubmitting(false)
@@ -180,9 +177,24 @@ export default function BookingPage() {
       }),
     })
 
+    const payload = await res.json().catch(() => null)
+
     if (res.ok) {
       setBooking((current) => ({ ...current, clientName: clientData.client_name }))
       setStep('success')
+      if (payload?.notificationError) {
+        toast({
+          title: 'Agendamento criado',
+          description: `Nao foi possivel enviar WhatsApp: ${payload.notificationError}`,
+          variant: 'destructive',
+        })
+      }
+    } else {
+      toast({
+        title: 'Erro ao agendar',
+        description: payload?.error ?? 'Nao foi possivel registrar o agendamento.',
+        variant: 'destructive',
+      })
     }
 
     setSubmitting(false)
@@ -199,8 +211,9 @@ export default function BookingPage() {
     else if (step === 'client') setStep('time')
   }
 
-  const availableDays = rules.length > 0 ? rules.map((rule) => rule.day_of_week) : [1, 2, 3, 4, 5, 6]
+  const availableDays = rules.map((rule) => rule.day_of_week)
   const openStatus = getOpenStatus(rules)
+  const heroImage = barber?.logo_url || services.find((service) => service.image_url)?.image_url || barberPhotos.chair
   const steps: Step[] = ['service', 'date', 'time', 'client']
   const currentStepIndex = Math.max(steps.indexOf(step), 0)
   const stepTitle: Record<Step, string> = {
@@ -236,7 +249,7 @@ export default function BookingPage() {
       <div className="mx-auto max-w-xl pb-8">
         {step !== 'success' && (
           <section className="relative min-h-[245px] overflow-hidden">
-            <img src={barber?.logo_url || barberPhotos.chair} alt={barber?.barbershop_name || 'Barbearia'} className="absolute inset-0 h-full w-full object-cover" />
+            <img src={heroImage} alt={barber?.barbershop_name || 'Barbearia'} className="absolute inset-0 h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#08090A] via-black/55 to-black/20" />
             <div className="relative flex min-h-[245px] flex-col justify-between p-5">
               <div className="flex items-center justify-between">
@@ -256,8 +269,17 @@ export default function BookingPage() {
                 <p className="text-sm font-semibold text-[#F4B400]">{barber?.barber_name}</p>
                 <h1 className="mt-2 text-[32px] font-semibold leading-tight text-white">{barber?.barbershop_name}</h1>
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[#D1D5DB]">
-                  <span className="flex items-center gap-1"><MapPin className="h-4 w-4 text-[#F4B400]" /> Unidade premium</span>
-                  <span className="flex items-center gap-1"><ShieldCheck className="h-4 w-4 text-[#22C55E]" /> Confirmacao rapida</span>
+                  {barber?.whatsapp && (
+                    <span className="flex items-center gap-1">
+                      <MessageCircle className="h-4 w-4 text-[#F4B400]" />
+                      {formatWhatsApp(barber.whatsapp)}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    <Scissors className="h-4 w-4 text-[#F4B400]" />
+                    {services.length} {services.length === 1 ? 'servico' : 'servicos'}
+                  </span>
+                  <span className="flex items-center gap-1"><ShieldCheck className="h-4 w-4 text-[#22C55E]" /> Confirmacao por WhatsApp</span>
                   <span className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${
                     openStatus.isOpen
                       ? 'border-[#22C55E]/40 bg-[#22C55E]/15 text-[#22C55E]'
@@ -330,7 +352,13 @@ export default function BookingPage() {
           )}
 
           {step === 'date' && (
-            <DateSelector availableDays={availableDays} selectedDate={booking.date} onSelect={handleSelectDate} />
+            rules.length > 0 ? (
+              <DateSelector availableDays={availableDays} selectedDate={booking.date} onSelect={handleSelectDate} />
+            ) : (
+              <div className="premium-card p-6 text-center text-[#9CA3AF]">
+                Esta barbearia ainda nao configurou horarios de atendimento.
+              </div>
+            )
           )}
 
           {step === 'time' && (

@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { generateTimeSlots } from '@/lib/utils/slots'
 import { getDay } from 'date-fns'
 
-type AppointmentSlot = { appointment_time: string }
+type AppointmentSlot = { appointment_time: string; service: { duration_minutes: number } | { duration_minutes: number }[] | null }
 type BlockedSlot = { blocked_time: string | null }
 
 export async function GET(request: NextRequest) {
@@ -14,6 +14,10 @@ export async function GET(request: NextRequest) {
 
   if (!barberId || !date || !serviceId) {
     return NextResponse.json({ error: 'Parâmetros obrigatórios: barber_id, date, service_id' }, { status: 400 })
+  }
+
+  if (!/^[0-9a-f-]{36}$/i.test(barberId) || !/^[0-9a-f-]{36}$/i.test(serviceId) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return NextResponse.json({ error: 'Parametros invalidos' }, { status: 400 })
   }
 
   try {
@@ -38,6 +42,8 @@ export async function GET(request: NextRequest) {
       .from('services')
       .select('duration_minutes')
       .eq('id', serviceId)
+      .eq('barber_id', barberId)
+      .eq('is_active', true)
       .single()
 
     if (!service) {
@@ -47,7 +53,7 @@ export async function GET(request: NextRequest) {
     // Buscar agendamentos confirmados na data
     const { data: appointments } = await supabase
       .from('appointments')
-      .select('appointment_time')
+      .select('appointment_time, service:services(duration_minutes)')
       .eq('barber_id', barberId)
       .eq('appointment_date', date)
       .eq('status', 'confirmed')
@@ -68,23 +74,38 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ slots: [] })
     }
 
-    const bookedTimes = appointmentSlots.map((a) =>
-      // "HH:MM:SS" -> "HH:MM"
-      a.appointment_time.substring(0, 5),
-    )
+    const occupiedIntervals = appointmentSlots.map((appointment) => {
+      const joinedService = Array.isArray(appointment.service) ? appointment.service[0] : appointment.service
+      return {
+        start: appointment.appointment_time.substring(0, 5),
+        durationMinutes: joinedService?.duration_minutes ?? rule.interval_minutes,
+      }
+    })
 
     const blockedTimes = blockedSlots
       .filter((b) => b.blocked_time)
       .map((b) => b.blocked_time!.substring(0, 5))
 
-    const slots = generateTimeSlots(
+    let slots = generateTimeSlots(
       rule.start_time.substring(0, 5),
       rule.end_time.substring(0, 5),
       rule.interval_minutes,
       service.duration_minutes,
-      bookedTimes,
+      occupiedIntervals,
       blockedTimes,
     )
+
+    const nowInSaoPaulo = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(new Date()).reduce<Record<string, string>>((parts, part) => {
+      parts[part.type] = part.value
+      return parts
+    }, {})
+    const today = `${nowInSaoPaulo.year}-${nowInSaoPaulo.month}-${nowInSaoPaulo.day}`
+    const currentTime = `${nowInSaoPaulo.hour}:${nowInSaoPaulo.minute}`
+    if (date < today) slots = []
+    if (date === today) slots = slots.filter((slot) => slot > currentTime)
 
     return NextResponse.json({ slots })
   } catch (err) {

@@ -7,7 +7,8 @@ export const createAppointmentSchema = z.object({
   client_whatsapp: z
     .string()
     .min(10, 'WhatsApp inválido')
-    .transform((v) => v.replace(/\D/g, '')),
+    .transform((v) => v.replace(/\D/g, ''))
+    .refine((v) => v.length >= 10 && v.length <= 13, 'WhatsApp invalido'),
   appointment_date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida'),

@@ -4,8 +4,8 @@ Aplicativo de agendamento para barbearias feito com Next.js, Supabase, Tailwind 
 
 O projeto tem duas experiencias principais:
 
-- Cliente: home, servicos, favoritos, perfil e fluxo publico de agendamento.
 - Barbeiro: painel protegido para agenda, servicos, horarios e perfil da barbearia.
+- Cliente final: acessa apenas o link publico da barbearia para agendar, sem criar conta.
 
 ## Requisitos
 
@@ -189,9 +189,7 @@ http://localhost:3000
 Rotas uteis para testar:
 
 ```text
-/                      Home do cliente
-/onboarding            Onboarding
-/cliente/servicos      Lista de servicos do cliente
+/                      Redireciona para login ou dashboard
 /agendar/demo          Fluxo de agendamento demo
 /login                 Login do barbeiro
 /cadastro              Cadastro do barbeiro
@@ -271,6 +269,45 @@ Em producao, atualize:
 ```env
 NEXT_PUBLIC_APP_URL=https://seu-dominio.com
 ```
+
+## Publicacao na Vercel
+
+Antes de publicar pela primeira vez:
+
+1. Crie as tabelas descritas neste README, caso ainda nao existam.
+2. Execute no SQL Editor do Supabase o arquivo:
+
+```text
+supabase/migrations/202607220001_production_hardening.sql
+```
+
+Essa migracao e obrigatoria. Ela ativa RLS, impede acesso direto do navegador as
+tabelas, adiciona rate limit compartilhado entre as funcoes da Vercel e cria a
+funcao transacional que valida e registra agendamentos sem colisao de horarios.
+
+3. Importe o repositorio na Vercel com o preset `Next.js` e mantenha os comandos
+padrao (`npm run build` e output gerenciado pelo Next.js).
+4. Cadastre todas as variaveis de `.env.example` em Project Settings > Environment
+Variables. Cadastre segredos apenas como variaveis server-side; nunca adicione o
+prefixo `NEXT_PUBLIC_` na chave `SUPABASE_SERVICE_ROLE_KEY` ou nas chaves da Evolution.
+5. Em Supabase > Authentication > URL Configuration, use o dominio final da Vercel
+como Site URL e adicione `https://seu-dominio.com/**` em Redirect URLs.
+6. Aponte `NEXT_PUBLIC_APP_URL` para o dominio final, sem barra no fim, e faca um
+novo deploy depois de alterar essa variavel.
+
+Depois do deploy, valide nesta ordem:
+
+- criar uma conta real;
+- cadastrar perfil, servico e disponibilidade;
+- abrir `/agendar/seu-slug` em uma janela anonima;
+- confirmar que datas passadas e horarios fora do expediente nao aparecem;
+- criar um agendamento e tentar repetir ou sobrepor o mesmo periodo;
+- confirmar o registro no painel;
+- testar o envio de WhatsApp, caso a Evolution API esteja configurada.
+
+O app considera o fuso `America/Sao_Paulo` para agenda, validacao de datas e painel.
+A Evolution API precisa estar acessivel pela internet via HTTPS; enderecos locais
+ou privados nao podem ser acessados pelas funcoes da Vercel.
 
 ## Problemas comuns
 

@@ -32,38 +32,36 @@ export function RegisterForm() {
   const onSubmit = async (data: RegisterInput) => {
     setLoading(true)
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const response = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      toast({
+        title: 'Erro ao criar conta',
+        description: result.error ?? 'Nao foi possivel criar sua conta.',
+        variant: 'destructive',
+      })
+      setLoading(false)
+      return
+    }
+
+    const { error: authError } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     })
 
     if (authError) {
-      toast({ title: 'Erro ao criar conta', description: authError.message, variant: 'destructive' })
+      toast({
+        title: 'Conta criada',
+        description: 'Criamos sua conta, mas nao foi possivel entrar automaticamente. Tente fazer login.',
+      })
       setLoading(false)
-      return
-    }
-
-    if (!authData.user) {
-      toast({ title: 'Erro inesperado', description: 'Tente novamente.', variant: 'destructive' })
-      setLoading(false)
-      return
-    }
-
-    const { error: profileError } = await supabase.from('barbers').insert({
-      user_id: authData.user.id,
-      barbershop_name: data.barbershop_name,
-      barber_name: data.barber_name,
-      whatsapp: data.whatsapp,
-      slug: data.slug.toLowerCase(),
-    })
-
-    if (profileError) {
-      if (profileError.code === '23505') {
-        toast({ title: 'Link já em uso', description: 'Escolha outro link público.', variant: 'destructive' })
-      } else {
-        toast({ title: 'Erro ao criar perfil', description: profileError.message, variant: 'destructive' })
-      }
-      setLoading(false)
+      router.replace('/login')
       return
     }
 
@@ -76,7 +74,7 @@ export function RegisterForm() {
     <section className="relative flex min-h-[calc(100vh-2rem)] flex-1 flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#0B0D0F] px-5 py-5 shadow-[0_22px_80px_rgba(0,0,0,0.55)]">
       <div className="flex items-center justify-between text-[11px] font-semibold text-white">
         <span>9:30</span>
-        <span className="tracking-[0.18em]">•••</span>
+        <span className="tracking-[0.18em]">...</span>
       </div>
 
       <div className="mt-8">
@@ -84,7 +82,7 @@ export function RegisterForm() {
           <Scissors className="h-5 w-5" />
         </div>
         <h1 className="text-[25px] font-semibold text-white">Criar conta</h1>
-        <p className="mt-2 text-sm text-[#8F949D]">Crie sua conta admin para começar</p>
+        <p className="mt-2 text-sm text-[#8F949D]">Crie sua conta admin para comecar</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-3">
@@ -104,7 +102,7 @@ export function RegisterForm() {
           <Input placeholder="(11) 99999-9999" className="premium-input border-white/5 bg-[#14171A] pl-10" {...register('whatsapp')} />
         </Field>
 
-        <Field label="Link público" error={errors.slug?.message} icon={LinkIcon}>
+        <Field label="Link publico" error={errors.slug?.message} icon={LinkIcon}>
           <Input placeholder="barber-house" className="premium-input border-white/5 bg-[#14171A] pl-10" {...register('slug')} />
           {slugValue && <p className="mt-1 text-xs text-[#8F949D]">Seu link: <span className="text-[#F4B400]">/agendar/{slugValue}</span></p>}
         </Field>
@@ -130,7 +128,7 @@ export function RegisterForm() {
       </form>
 
       <p className="mt-auto pt-5 text-center text-sm text-[#8F949D]">
-        Já tem uma conta?{' '}
+        Ja tem uma conta?{' '}
         <Link href="/login" className="font-semibold text-[#F4B400]">Entrar</Link>
       </p>
     </section>
