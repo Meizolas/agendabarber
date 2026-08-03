@@ -1,45 +1,42 @@
-import { Appointment, Barber } from '@/types'
-import { ExternalLink } from 'lucide-react'
+import type { Appointment, Barber } from '@/types'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { NotificationBell } from '@/components/dashboard/NotificationBell'
-import { getPublicAppUrl } from '@/lib/utils/app-url'
+import { BrandLogo } from '@/components/premium/BrandLogo'
 
 interface HeaderProps {
   barber: Barber | null
   title: string
+  subtitle?: string
   notifications?: Appointment[]
 }
 
-export function Header({ barber, title, notifications }: HeaderProps) {
-  const appUrl = getPublicAppUrl()
+export function Header({ barber, title, subtitle, notifications }: HeaderProps) {
+  const initials = barber?.barber_name
+    ?.split(' ')
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
 
   return (
-    <header className="flex items-center justify-between gap-3 border-b border-white/10 bg-[#101214]/85 px-4 py-4 pl-16 backdrop-blur-xl sm:px-6 lg:pl-6">
-      <div className="min-w-0">
-        <p className="hidden text-xs text-[#9CA3AF] sm:block">Painel admin</p>
-        <h1 className="truncate text-[21px] font-semibold leading-tight text-white sm:text-[24px]">{title}</h1>
-      </div>
-      {barber && (
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+    <header className="px-4 pb-3 pt-5">
+      <div className="flex h-10 items-center justify-between">
+        <BrandLogo compact className="[&>div]:hidden" imageClassName="w-9" priority />
+        <div className="flex items-center gap-2.5">
           {notifications && <NotificationBell appointments={notifications} />}
-          <div className="hidden sm:block text-right">
-            <p className="text-sm font-medium text-white">{barber.barber_name}</p>
-            <p className="text-xs text-[#9CA3AF]">{barber.barbershop_name}</p>
-          </div>
-          <Button variant="outline" size="sm" className="h-9 border-white/10 bg-[#16181D] px-3 text-white hover:bg-white/5" asChild>
-            <Link
-              href={`${appUrl}/agendar/${barber.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="gap-2"
-            >
-              <ExternalLink className="h-4 w-4" />
-              <span className="hidden min-[380px]:inline">Link</span>
-            </Link>
-          </Button>
+          <Link href="/perfil" aria-label="Abrir perfil" className="grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-[#F5C400]/45 bg-[#16181D] text-[11px] font-semibold text-white">
+            {barber?.logo_url ? (
+              <img src={barber.logo_url} alt="Logo da barbearia" className="h-full w-full object-cover" />
+            ) : (
+              initials || 'AB'
+            )}
+          </Link>
         </div>
-      )}
+      </div>
+      <div className="mt-3">
+        <h1 className="text-[22px] font-semibold leading-tight text-white">{title}</h1>
+        {subtitle && <p className="mt-1 text-xs text-[#858A93]">{subtitle}</p>}
+      </div>
     </header>
   )
 }

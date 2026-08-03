@@ -70,7 +70,7 @@ export function NotificationBell({ appointments }: NotificationBellProps) {
         ref={buttonRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className={`relative grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-[#16181D] text-white transition hover:bg-white/5 ${open ? 'opacity-0' : ''}`}
+        className={`relative grid h-9 w-9 place-items-center rounded-full text-[#D7DADE] transition hover:bg-white/5 hover:text-[#F5C400] ${open ? 'opacity-0' : ''}`}
         aria-label="Ver proximos agendamentos"
       >
         <Bell className="h-4 w-4" />
@@ -92,7 +92,7 @@ export function NotificationBell({ appointments }: NotificationBellProps) {
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="fixed z-[120] grid place-items-center rounded-md border border-white/10 bg-[#16181D] text-white shadow-[0_12px_32px_rgba(0,0,0,0.35)]"
+            className="fixed z-[120] grid place-items-center rounded-full bg-[#16181D] text-white shadow-[0_12px_32px_rgba(0,0,0,0.35)]"
             style={{
               top: buttonPosition.top,
               left: buttonPosition.left,

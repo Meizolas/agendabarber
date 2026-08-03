@@ -1,7 +1,6 @@
-import { Service } from '@/types'
-import { formatPrice, formatDuration } from '@/lib/utils/format'
-import { Check, Clock3, ImageIcon, Scissors } from 'lucide-react'
-import { cn } from '@/lib/utils/cn'
+import type { Service } from '@/types'
+import { formatDuration, formatPrice } from '@/lib/utils/format'
+import { Check, Clock3, Scissors } from 'lucide-react'
 
 interface ServiceSelectorProps {
   services: Service[]
@@ -11,63 +10,32 @@ interface ServiceSelectorProps {
 
 export function ServiceSelector({ services, selectedId, onSelect }: ServiceSelectorProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {services.map((service) => {
         const selected = service.id === selectedId
-
         return (
           <button
             key={service.id}
+            type="button"
             onClick={() => onSelect(service)}
-            className={cn(
-              'flex w-full items-center gap-4 rounded-lg border p-3 text-left transition',
-              selected
-                ? 'border-[#F4B400] bg-[#F4B400]/10 shadow-[0_0_0_1px_rgba(244,180,0,0.28)]'
-                : 'border-white/10 bg-[#16181D] hover:border-[#F4B400]/45',
-            )}
+            className={`flex w-full items-stretch overflow-hidden rounded-lg border text-left transition ${selected ? 'border-[#F5C400] bg-[#191A1D] shadow-[0_0_0_1px_rgba(245,196,0,0.12)]' : 'border-white/10 bg-[#17191C] hover:border-white/20'}`}
           >
-            <ServiceThumb service={service} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="truncate font-semibold text-white">{service.name}</p>
-                {selected && (
-                  <span className="grid h-5 w-5 place-items-center rounded-full bg-[#F4B400] text-[#08090A]">
-                    <Check className="h-3 w-3" />
-                  </span>
-                )}
-              </div>
-              <div className="mt-2 flex items-center gap-4 text-sm">
-                <span className="flex items-center gap-1 text-[#9CA3AF]">
-                  <Clock3 className="h-3.5 w-3.5" />
-                  {formatDuration(service.duration_minutes)}
-                </span>
-                <span className="font-semibold text-[#F4B400]">{formatPrice(service.price)}</span>
-              </div>
-            </div>
+            {service.image_url ? (
+              <img src={service.image_url} alt={service.name} className="h-[86px] w-[88px] shrink-0 object-cover" />
+            ) : (
+              <span className="grid h-[86px] w-[88px] shrink-0 place-items-center bg-[#101214] text-[#F5C400]"><Scissors className="h-7 w-7" /></span>
+            )}
+            <span className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2">
+              <span className="min-w-0">
+                <strong className="block truncate text-sm font-medium text-white">{service.name}</strong>
+                <span className="mt-1.5 flex items-center gap-1 text-[11px] text-[#A2A6AD]"><Clock3 className="h-3.5 w-3.5" /> {formatDuration(service.duration_minutes)}</span>
+                <span className="mt-1 block text-sm font-semibold text-[#F5C400]">{formatPrice(service.price)}</span>
+              </span>
+              {selected && <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#F5C400] text-black"><Check className="h-4 w-4 stroke-[3]" /></span>}
+            </span>
           </button>
         )
       })}
-    </div>
-  )
-}
-
-function ServiceThumb({ service }: { service: Service }) {
-  if (service.image_url) {
-    return (
-      <img
-        src={service.image_url}
-        alt={service.name}
-        className="h-16 w-16 shrink-0 rounded-lg object-cover"
-      />
-    )
-  }
-
-  return (
-    <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg border border-white/10 bg-[#101214] text-[#F4B400]">
-      <div className="flex flex-col items-center gap-1">
-        <Scissors className="h-5 w-5" />
-        <ImageIcon className="h-3.5 w-3.5 text-[#6B7280]" />
-      </div>
     </div>
   )
 }

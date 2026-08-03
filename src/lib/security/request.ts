@@ -11,6 +11,20 @@ export function requestFingerprint(request: NextRequest, scope: string) {
   return createHash('sha256').update(`${scope}:${getClientIp(request)}`).digest('hex')
 }
 
+export function isTrustedMutationRequest(request: NextRequest) {
+  const fetchSite = request.headers.get('sec-fetch-site')
+  if (fetchSite === 'cross-site') return false
+
+  const origin = request.headers.get('origin')
+  if (!origin) return true
+
+  try {
+    return new URL(origin).host === request.nextUrl.host
+  } catch {
+    return false
+  }
+}
+
 export async function enforceRateLimit({ supabase, key, limit, windowSeconds }: {
   supabase: SupabaseClient
   key: string

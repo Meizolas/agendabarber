@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/session'
 
 const BUCKET_NAME = 'service-images'
 const MAX_FILE_SIZE = 4 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
 export async function POST(request: NextRequest) {
-  const authClient = await createClient()
-  const { data: { user } } = await authClient.auth.getUser()
+  const user = await getCurrentUser()
 
   if (!user) return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 })
 

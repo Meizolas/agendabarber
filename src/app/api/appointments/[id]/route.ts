@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/session'
 import { updateAppointmentStatusSchema } from '@/lib/validations/appointment'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const authClient = await createClient()
-    const { data: { user } } = await authClient.auth.getUser()
+    const { id } = await params
+    const user = await getCurrentUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 })
@@ -35,7 +36,7 @@ export async function PATCH(
     const { data, error } = await adminClient
       .from('appointments')
       .update({ status: parsed.data.status })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('barber_id', barber.id)
       .select('*, service:services(*)')
       .single()

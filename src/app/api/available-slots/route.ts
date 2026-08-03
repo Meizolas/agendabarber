@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { generateTimeSlots } from '@/lib/utils/slots'
 import { getDay } from 'date-fns'
+import { getBillingAccessByBarberId } from '@/lib/billing/access'
 
 type AppointmentSlot = { appointment_time: string; service: { duration_minutes: number } | { duration_minutes: number }[] | null }
 type BlockedSlot = { blocked_time: string | null }
@@ -22,6 +23,13 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = createServiceClient()
+    const billingAccess = await getBillingAccessByBarberId(barberId)
+    if (!billingAccess.allowed) {
+      return NextResponse.json(
+        { error: 'Agenda temporariamente indisponivel.', code: 'PAYMENT_REQUIRED' },
+        { status: 402 },
+      )
+    }
     const dayOfWeek = getDay(new Date(date + 'T12:00:00'))
 
     // Buscar regra de disponibilidade para o dia da semana

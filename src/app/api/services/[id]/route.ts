@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/session'
 import { serviceSchema } from '@/lib/validations/service'
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 })
 
   const body = await request.json()
@@ -23,7 +24,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   const { data, error } = await adminClient
     .from('services')
     .update(parsed.data)
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('barber_id', barber.id)
     .select()
     .single()
@@ -32,9 +33,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   return NextResponse.json({ service: data })
 }
 
-export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 })
 
   const adminClient = createServiceClient()
@@ -49,7 +50,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
   const { error } = await adminClient
     .from('services')
     .delete()
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('barber_id', barber.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

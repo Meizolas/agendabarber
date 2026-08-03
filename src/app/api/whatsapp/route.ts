@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/session'
 import { z } from 'zod'
 
 const schema = z.object({
@@ -10,8 +10,7 @@ const schema = z.object({
 // Rota para envio manual de mensagem WhatsApp (autenticado)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })

@@ -51,6 +51,17 @@ EVOLUTION_INSTANCE_NAME=nome-da-instancia
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Recuperacao de senha (Resend)
+RESEND_API_KEY=re_xxxxxxxxx
+AUTH_EMAIL_FROM=AgendBarber <contato@seu-dominio.com>
+
+# Asaas (use a chave correspondente ao ambiente da URL)
+ASAAS_API_URL=https://api-sandbox.asaas.com/v3
+ASAAS_API_KEY=sua-chave-sandbox
+ASAAS_MONTHLY_PRICE=49.90
+ASAAS_WEBHOOK_TOKEN=gere-um-token-exclusivo-para-webhook
+ASAAS_WEBHOOK_EMAIL=financeiro@seu-dominio.com
 ```
 
 Importante:
@@ -63,7 +74,7 @@ Importante:
 
 No Supabase, voce precisa configurar:
 
-1. Authentication com login por e-mail e senha.
+1. Banco PostgreSQL e a chave `service_role` para a autenticacao propria do app.
 2. Tabelas do banco.
 3. Storage bucket para logos, se quiser upload de imagem no perfil.
 
@@ -275,25 +286,95 @@ NEXT_PUBLIC_APP_URL=https://seu-dominio.com
 Antes de publicar pela primeira vez:
 
 1. Crie as tabelas descritas neste README, caso ainda nao existam.
-2. Execute no SQL Editor do Supabase o arquivo:
+2. Execute no SQL Editor do Supabase, nesta ordem:
 
 ```text
 supabase/migrations/202607220001_production_hardening.sql
+supabase/migrations/202608010001_auth_billing_foundation.sql
+supabase/migrations/202608010002_local_auth_cutover.sql
+supabase/migrations/202608010003_billing_checkout_integrity.sql
+supabase/migrations/202608020001_billing_webhook_access.sql
 ```
 
-Essa migracao e obrigatoria. Ela ativa RLS, impede acesso direto do navegador as
+Essas migracoes sao obrigatorias. A primeira ativa RLS, impede acesso direto do navegador as
 tabelas, adiciona rate limit compartilhado entre as funcoes da Vercel e cria a
 funcao transacional que valida e registra agendamentos sem colisao de horarios.
+
+A segunda prepara, sem ativar, a autenticacao local e a cobranca recorrente. Ela
+cria as tabelas `users`, `sessions`, `password_reset_tokens`, `subscriptions`,
+`billing_checkouts`, `payments` e `billing_events`, preservando os UUIDs dos
+usuarios atuais. Aplicar essa fundacao nao remove o Supabase Auth e nao bloqueia
+o acesso existente. O rollback correspondente fica em
+`supabase/rollbacks/202608010001_auth_billing_foundation_rollback.sql` e e
+destrutivo; use-o somente antes de existirem dados reais nas novas tabelas.
+Depois de aplicar a segunda migration em homologacao, execute
+`supabase/tests/202608010001_auth_billing_foundation_test.sql`; o teste valida
+tabelas, backfill, permissoes e idempotencia e termina com `ROLLBACK`.
+
+A terceira migration ativa a autenticacao propria: troca a chave estrangeira de
+`barbers.user_id` para `public.users` e instala as funcoes transacionais de
+cadastro e redefinicao de senha. Depois dela, execute
+`supabase/tests/202608010002_local_auth_cutover_test.sql`. Novas contas deixam de
+ser criadas no Supabase Auth. Contas antigas com e-mail e senha sao migradas
+automaticamente no primeiro login bem-sucedido; sessoes antigas continuam
+aceitas temporariamente durante a transicao.
+
+A quarta migration adiciona a garantia de apenas um checkout aberto por
+barbearia. Depois dela, execute
+`supabase/tests/202608010003_billing_checkout_integrity_test.sql`.
+
+O cadastro direciona novas contas para `/assinatura`. Ao clicar para assinar, o
+servidor cria um Checkout recorrente mensal e redireciona o usuario para a pagina
+hospedada pelo Asaas. O app nao recebe numero, validade nem CVV do cartao. O
+retorno visual do Checkout nao ativa a assinatura; a confirmacao financeira deve
+vir pelo webhook autenticado do Asaas.
+
+A quinta migration adiciona retry seguro para eventos interrompidos e concede
+uma janela de transicao de 14 dias apenas para as barbearias que ja existiam no
+momento da aplicacao. Novas contas continuam bloqueadas ate a confirmacao do
+pagamento. Depois dela, execute
+`supabase/tests/202608020001_billing_webhook_access_test.sql`.
 
 3. Importe o repositorio na Vercel com o preset `Next.js` e mantenha os comandos
 padrao (`npm run build` e output gerenciado pelo Next.js).
 4. Cadastre todas as variaveis de `.env.example` em Project Settings > Environment
 Variables. Cadastre segredos apenas como variaveis server-side; nunca adicione o
-prefixo `NEXT_PUBLIC_` na chave `SUPABASE_SERVICE_ROLE_KEY` ou nas chaves da Evolution.
-5. Em Supabase > Authentication > URL Configuration, use o dominio final da Vercel
-como Site URL e adicione `https://seu-dominio.com/**` em Redirect URLs.
+prefixo `NEXT_PUBLIC_` na chave `SUPABASE_SERVICE_ROLE_KEY`, `ASAAS_API_KEY`,
+`ASAAS_WEBHOOK_TOKEN` ou nas chaves da Evolution.
+5. No Resend, valide o dominio usado em `AUTH_EMAIL_FROM` para habilitar a
+recuperacao de senha em producao.
 6. Aponte `NEXT_PUBLIC_APP_URL` para o dominio final, sem barra no fim, e faca um
 novo deploy depois de alterar essa variavel.
+7. No Asaas, crie um Webhook com envio sequencial usando:
+
+```text
+URL: https://seu-dominio.com/api/webhooks/asaas
+Token de autenticacao: o mesmo valor de ASAAS_WEBHOOK_TOKEN
+```
+
+Habilite os eventos `CHECKOUT_CREATED`, `CHECKOUT_PAID`, `CHECKOUT_CANCELED`,
+`CHECKOUT_EXPIRED`, `SUBSCRIPTION_CREATED`, `SUBSCRIPTION_UPDATED`,
+`SUBSCRIPTION_INACTIVATED`, `SUBSCRIPTION_DELETED`, `PAYMENT_CREATED`,
+`PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `PAYMENT_OVERDUE`, `PAYMENT_REFUNDED`,
+`PAYMENT_PARTIALLY_REFUNDED`, `PAYMENT_REFUND_IN_PROGRESS`,
+`PAYMENT_CHARGEBACK_REQUESTED`, `PAYMENT_CHARGEBACK_DISPUTE` e
+`PAYMENT_AWAITING_CHARGEBACK_REVERSAL`.
+
+Use os hosts atuais `https://api-sandbox.asaas.com/v3` em homologacao e
+`https://api.asaas.com/v3` em producao. O cliente ainda normaliza os endpoints
+legados do Asaas para facilitar a migracao, mas eles nao devem ser usados em uma
+nova configuracao.
+
+Depois de configurar um dominio HTTPS publico e o e-mail operacional, crie ou
+atualize o Webhook de forma idempotente com:
+
+```bash
+npm run asaas:webhook:configure
+```
+
+Em `.env.local`, o caractere `$` inicial da API Key precisa ser escapado como
+`\$`. Variaveis cadastradas diretamente na Vercel devem manter a chave original,
+sem a barra invertida.
 
 Depois do deploy, valide nesta ordem:
 
@@ -329,11 +410,15 @@ npm run dev
 
 ### Login nao funciona
 
-Verifique no Supabase:
+Confira se as migrations foram executadas na ordem documentada e se
+`SUPABASE_SERVICE_ROLE_KEY` esta configurada apenas no servidor. Para contas
+legadas que ainda nao foram migradas, o login por e-mail/senha do Supabase Auth
+precisa permanecer habilitado durante a janela de transicao.
 
-- Authentication esta ativo.
-- E-mail/senha esta habilitado.
-- As URLs de redirect estao configuradas se usar OAuth/Google.
+### Recuperacao de senha nao envia e-mail
+
+Confira `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, a validacao do dominio no Resend e
+`NEXT_PUBLIC_APP_URL` apontando para o dominio correto.
 
 ### Agendamento nao mostra horarios
 

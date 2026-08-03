@@ -1,73 +1,53 @@
 'use client'
 
-import { Service } from '@/types'
-import { formatPrice, formatDuration } from '@/lib/utils/format'
-import { Pencil, Trash2, Clock, DollarSign, ImageIcon, Scissors } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import type { Service } from '@/types'
+import { formatDuration, formatPrice } from '@/lib/utils/format'
+import { Clock3, ImageIcon, MoreVertical, Pencil, Scissors, Trash2 } from 'lucide-react'
 
 interface ServiceCardProps {
   service: Service
   onEdit: (service: Service) => void
   onDelete: (service: Service) => void
+  onToggle?: (service: Service) => void
 }
 
-export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
+export function ServiceCard({ service, onEdit, onDelete, onToggle }: ServiceCardProps) {
   return (
-    <div className="premium-card overflow-hidden transition hover:border-[#F4B400]/35">
+    <article className="dashboard-card flex min-h-[86px] items-center gap-3 p-2.5">
       {service.image_url ? (
-        <img src={service.image_url} alt={service.name} className="h-36 w-full object-cover" />
+        <img src={service.image_url} alt={service.name} className="h-[68px] w-[68px] shrink-0 rounded-md object-cover" />
       ) : (
-        <div className="grid h-36 w-full place-items-center border-b border-white/10 bg-[#101214] text-[#F4B400]">
-          <div className="flex flex-col items-center gap-2 text-xs text-[#9CA3AF]">
-            <Scissors className="h-7 w-7 text-[#F4B400]" />
-            <span className="inline-flex items-center gap-1">
-              <ImageIcon className="h-3.5 w-3.5" />
-              Sem imagem cadastrada
-            </span>
-          </div>
+        <div className="grid h-[68px] w-[68px] shrink-0 place-items-center rounded-md border border-white/10 bg-[#101214] text-[#F5C400]">
+          <div className="grid place-items-center gap-1"><Scissors className="h-5 w-5" /><ImageIcon className="h-3 w-3 text-[#737881]" /></div>
         </div>
       )}
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="mb-2 flex items-center gap-2">
-              <h3 className="truncate font-semibold text-white">{service.name}</h3>
-              {!service.is_active && <Badge variant="secondary" className="shrink-0 text-xs">Inativo</Badge>}
-            </div>
 
-            <div className="flex items-center gap-4 text-sm">
-              <span className="flex items-center gap-1.5 font-semibold text-[#F4B400]">
-                <DollarSign className="h-4 w-4" />
-                {formatPrice(service.price)}
-              </span>
-              <span className="flex items-center gap-1.5 text-[#9CA3AF]">
-                <Clock className="h-4 w-4" />
-                {formatDuration(service.duration_minutes)}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-[#9CA3AF] hover:text-[#F4B400]"
-              onClick={() => onEdit(service)}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-[#9CA3AF] hover:text-[#EF4444]"
-              onClick={() => onDelete(service)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-white">{service.name}</p>
+        <p className="mt-1 text-[11px] text-[#A2A6AD]">{formatPrice(service.price)}</p>
+        <p className="mt-0.5 flex items-center gap-1 text-[10px] text-[#737881]"><Clock3 className="h-3 w-3" /> {formatDuration(service.duration_minutes)}</p>
       </div>
-    </div>
+
+      <div className="flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={service.is_active}
+          aria-label={`${service.is_active ? 'Desativar' : 'Ativar'} ${service.name}`}
+          onClick={() => onToggle?.(service)}
+          className={`relative h-6 w-10 rounded-full border transition ${service.is_active ? 'border-[#F5C400] bg-[#F5C400]' : 'border-white/15 bg-[#3D4147]'}`}
+        >
+          <span className={`absolute top-0.5 h-[18px] w-[18px] rounded-full bg-white shadow transition ${service.is_active ? 'left-[18px]' : 'left-0.5'}`} />
+        </button>
+
+        <details className="group relative">
+          <summary className="grid h-8 w-7 cursor-pointer list-none place-items-center text-[#A2A6AD] [&::-webkit-details-marker]:hidden"><MoreVertical className="h-5 w-5" /></summary>
+          <div className="absolute right-0 top-8 z-20 w-28 overflow-hidden rounded-lg border border-white/10 bg-[#17191C] p-1 shadow-2xl">
+            <button type="button" onClick={() => onEdit(service)} className="flex w-full items-center gap-2 rounded px-2 py-2 text-xs text-white hover:bg-white/5"><Pencil className="h-3.5 w-3.5" /> Editar</button>
+            <button type="button" onClick={() => onDelete(service)} className="flex w-full items-center gap-2 rounded px-2 py-2 text-xs text-[#F87171] hover:bg-white/5"><Trash2 className="h-3.5 w-3.5" /> Excluir</button>
+          </div>
+        </details>
+      </div>
+    </article>
   )
 }

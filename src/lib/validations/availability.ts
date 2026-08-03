@@ -18,6 +18,7 @@ export const availabilityRuleSchema = z
       .int()
       .min(10, 'Intervalo mínimo: 10 minutos')
       .max(120, 'Intervalo máximo: 120 minutos'),
+    is_active: z.boolean().optional(),
   })
   .refine(
     (data) => data.start_time < data.end_time,

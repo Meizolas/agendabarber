@@ -1,5 +1,4 @@
-import { cn } from '@/lib/utils/cn'
-import { Clock3 } from 'lucide-react'
+import { Clock3, Sun, Sunset } from 'lucide-react'
 
 interface TimeSelectorProps {
   slots: string[]
@@ -9,44 +8,26 @@ interface TimeSelectorProps {
 }
 
 export function TimeSelector({ slots, selectedTime, onSelect, loading }: TimeSelectorProps) {
-  if (loading) {
-    return (
-      <div className="grid grid-cols-3 gap-3">
-        {Array.from({ length: 9 }).map((_, i) => (
-          <div key={i} className="h-12 rounded-lg bg-[#16181D] animate-pulse" />
-        ))}
-      </div>
-    )
-  }
+  if (loading) return <div className="grid grid-cols-4 gap-2">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="h-12 animate-pulse rounded-lg bg-[#17191C]" />)}</div>
+  if (!slots.length) return <div className="rounded-lg border border-white/10 bg-[#15171A] p-8 text-center"><Clock3 className="mx-auto mb-2 h-8 w-8 text-[#F5C400]" /><p className="text-xs text-[#858A93]">Nenhum horário disponível nesta data</p></div>
 
-  if (slots.length === 0) {
-    return (
-      <div className="premium-card p-8 text-center">
-        <Clock3 className="mx-auto mb-3 h-9 w-9 text-[#6B7280]" />
-        <p className="text-sm text-[#9CA3AF]">Nenhum horário disponível nesta data</p>
-      </div>
-    )
-  }
+  const morning = slots.filter((slot) => Number(slot.slice(0, 2)) < 12)
+  const afternoon = slots.filter((slot) => Number(slot.slice(0, 2)) >= 12)
 
+  return <div className="space-y-5"><Period title="Manhã" icon={Sun} slots={morning} selected={selectedTime} onSelect={onSelect} /><Period title="Tarde" icon={Sunset} slots={afternoon} selected={selectedTime} onSelect={onSelect} /></div>
+}
+
+function Period({ title, icon: Icon, slots, selected, onSelect }: { title: string; icon: React.ComponentType<{ className?: string }>; slots: string[]; selected: string | null; onSelect: (time: string) => void }) {
+  if (!slots.length) return null
   return (
-    <div className="grid grid-cols-3 gap-3">
-      {slots.map((slot) => {
-        const isSelected = slot === selectedTime
-        return (
-          <button
-            key={slot}
-            onClick={() => onSelect(slot)}
-            className={cn(
-              'h-12 rounded-lg border text-sm font-semibold transition',
-              isSelected
-                ? 'border-[#F4B400] bg-[#F4B400] text-[#08090A] shadow-[0_12px_26px_rgba(244,180,0,0.2)]'
-                : 'border-white/10 bg-[#16181D] text-white hover:border-[#F4B400]/50',
-            )}
-          >
-            {slot.substring(0, 5)}
-          </button>
-        )
-      })}
-    </div>
+    <section>
+      <h3 className="mb-3 flex items-center gap-2 border-b border-white/[0.07] pb-2 text-sm text-[#A2A6AD]"><Icon className="h-5 w-5 text-[#F5C400]" /> {title}</h3>
+      <div className="grid grid-cols-4 gap-2">
+        {slots.map((slot) => {
+          const active = slot === selected
+          return <button key={slot} type="button" onClick={() => onSelect(slot)} className={`relative h-12 rounded-lg border text-xs font-medium transition ${active ? 'border-[#F5C400] bg-[#F5C400] text-black shadow-[0_8px_20px_rgba(245,196,0,0.18)]' : 'border-white/15 bg-[#111315] text-[#D7DADE] hover:border-[#F5C400]/45'}`}>{slot.slice(0, 5)}{active && <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-[#F5C400] text-[9px] text-black ring-2 ring-[#080A0C]">✓</span>}</button>
+        })}
+      </div>
+    </section>
   )
 }

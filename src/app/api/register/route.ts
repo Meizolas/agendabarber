@@ -1,81 +1,83 @@
+import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { registerSchema } from '@/lib/validations/auth'
-import { enforceRateLimit, requestFingerprint } from '@/lib/security/request'
+import { enforceRateLimit, getClientIp, isTrustedMutationRequest, requestFingerprint } from '@/lib/security/request'
+import { hashPassword } from '@/lib/auth/password'
+import { createSession, setSessionCookie } from '@/lib/auth/session'
+
+const TERMS_VERSION = '2026-08-01'
 
 export async function POST(request: NextRequest) {
-  const body = await request.json()
-  const parsed = registerSchema.safeParse(body)
+  if (!isTrustedMutationRequest(request)) {
+    return NextResponse.json({ error: 'Origem da requisicao invalida.' }, { status: 403 })
+  }
 
+  const body = await request.json().catch(() => null)
+  const parsed = registerSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: 'Dados invalidos', details: parsed.error.flatten() }, { status: 400 })
   }
 
   const { email, password, barber_name, barbershop_name, whatsapp, slug } = parsed.data
-  const supabase = createServiceClient()
+  const normalizedEmail = email.trim().toLowerCase()
+  const normalizedSlug = slug.toLowerCase()
+  const admin = createServiceClient()
 
   try {
     const allowed = await enforceRateLimit({
-      supabase,
+      supabase: admin,
       key: requestFingerprint(request, 'register'),
       limit: 4,
       windowSeconds: 60 * 60,
     })
-    if (!allowed) return NextResponse.json({ error: 'Muitas tentativas de cadastro. Tente mais tarde.' }, { status: 429 })
+    if (!allowed) {
+      return NextResponse.json({ error: 'Muitas tentativas de cadastro. Tente mais tarde.' }, { status: 429 })
+    }
   } catch {
-    return NextResponse.json({ error: 'Protecao do banco ainda nao foi instalada.' }, { status: 503 })
+    return NextResponse.json({ error: 'Cadastro temporariamente indisponivel.' }, { status: 503 })
   }
 
-  const { data: existingSlug } = await supabase
-    .from('barbers')
-    .select('id')
-    .eq('slug', slug.toLowerCase())
-    .maybeSingle()
+  const [{ data: existingUser }, { data: existingSlug }] = await Promise.all([
+    admin.from('users').select('id').eq('email', normalizedEmail).maybeSingle(),
+    admin.from('barbers').select('id').eq('slug', normalizedSlug).maybeSingle(),
+  ])
 
+  if (existingUser) {
+    return NextResponse.json({ error: 'Este e-mail ja esta cadastrado.' }, { status: 409 })
+  }
   if (existingSlug) {
     return NextResponse.json({ error: 'Link publico ja esta em uso.' }, { status: 409 })
   }
 
-  const { data: userData, error: userError } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
+  const userId = randomUUID()
+  const passwordHash = await hashPassword(password)
+  const clientIp = getClientIp(request)
+  const { error } = await admin.rpc('create_local_account', {
+    p_user_id: userId,
+    p_email: normalizedEmail,
+    p_password_hash: passwordHash,
+    p_barber_name: barber_name,
+    p_barbershop_name: barbershop_name,
+    p_whatsapp: whatsapp,
+    p_slug: normalizedSlug,
+    p_terms_version: TERMS_VERSION,
+    p_terms_ip: clientIp === 'unknown' ? null : clientIp,
   })
 
-  if (userError || !userData.user) {
-    const message = userError?.message?.toLowerCase() ?? ''
-    const isDuplicate = message.includes('already') || message.includes('registered') || message.includes('exists')
-
+  if (error) {
+    const duplicate = error.code === '23505'
     return NextResponse.json(
-      {
-        error: isDuplicate
-          ? 'Este e-mail ja existe no Auth. Entre com ele ou remova o usuario no Supabase antes de cadastrar novamente.'
-          : userError?.message ?? 'Nao foi possivel criar o usuario.',
-      },
-      { status: isDuplicate ? 409 : 500 },
+      { error: duplicate ? 'E-mail ou link publico ja esta em uso.' : 'Nao foi possivel criar sua conta.' },
+      { status: duplicate ? 409 : 500 },
     )
   }
 
-  const { error: profileError } = await supabase.from('barbers').insert({
-    user_id: userData.user.id,
-    barbershop_name,
-    barber_name,
-    whatsapp,
-    slug: slug.toLowerCase(),
-  })
-
-  if (profileError) {
-    await supabase.auth.admin.deleteUser(userData.user.id)
-
-    return NextResponse.json(
-      {
-        error: profileError.code === '23505'
-          ? 'Link publico ja esta em uso.'
-          : profileError.message,
-      },
-      { status: profileError.code === '23505' ? 409 : 500 },
-    )
-  }
-
-  return NextResponse.json({ ok: true }, { status: 201 })
+  const session = await createSession(userId, request)
+  const response = NextResponse.json(
+    { ok: true, user: { id: userId, email: normalizedEmail } },
+    { status: 201 },
+  )
+  setSessionCookie(response, session)
+  return response
 }

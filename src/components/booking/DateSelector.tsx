@@ -1,10 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { addDays, addMonths, format, getDay, isBefore, isSameMonth, startOfMonth, startOfToday, startOfWeek } from 'date-fns'
+import { addDays, addMonths, differenceInCalendarMonths, format, getDay, isBefore, isSameMonth, startOfMonth, startOfToday, startOfWeek } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { cn } from '@/lib/utils/cn'
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface DateSelectorProps {
   availableDays: number[]
@@ -17,55 +16,44 @@ export function DateSelector({ availableDays, selectedDate, onSelect }: DateSele
   const today = startOfToday()
   const month = addMonths(startOfMonth(today), monthOffset)
   const gridStart = startOfWeek(month, { weekStartsOn: 0 })
-  const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i))
-  const weekDays = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
+  const days = Array.from({ length: 42 }, (_, index) => addDays(gridStart, index))
+  const available = (day: Date) => availableDays.includes(getDay(day)) && !isBefore(day, today)
+
+  const choose = (day: Date) => {
+    if (!available(day)) return
+    setMonthOffset(differenceInCalendarMonths(startOfMonth(day), startOfMonth(today)))
+    onSelect(format(day, 'yyyy-MM-dd'))
+  }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => setMonthOffset((value) => Math.max(0, value - 1))}
-          disabled={monthOffset === 0}
-          className="grid h-10 w-10 place-items-center rounded-lg border border-white/10 bg-[#101214] text-white disabled:opacity-30"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <span className="text-[18px] font-semibold capitalize text-white">
-          {format(month, 'MMMM yyyy', { locale: ptBR })}
-        </span>
-        <button
-          onClick={() => setMonthOffset((value) => value + 1)}
-          className="grid h-10 w-10 place-items-center rounded-lg border border-white/10 bg-[#101214] text-white"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
+    <div className="space-y-3">
+      <div className="rounded-xl border border-white/10 bg-[#15171A] p-3">
+        <div className="mb-4 flex items-center justify-between">
+          <button type="button" onClick={() => setMonthOffset((value) => Math.max(0, value - 1))} disabled={monthOffset === 0} className="grid h-8 w-8 place-items-center text-[#D7DADE] disabled:opacity-25"><ChevronLeft className="h-4 w-4" /></button>
+          <span className="text-sm font-semibold capitalize text-white">{format(month, 'MMMM yyyy', { locale: ptBR })}</span>
+          <button type="button" onClick={() => setMonthOffset((value) => value + 1)} className="grid h-8 w-8 place-items-center text-[#D7DADE]"><ChevronRight className="h-4 w-4" /></button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 text-center text-[9px] uppercase text-[#858A93]">
+          {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((label) => <span key={label}>{label}</span>)}
+        </div>
+        <div className="mt-2 grid grid-cols-7 gap-1">
+          {days.map((day) => {
+            const value = format(day, 'yyyy-MM-dd')
+            const enabled = available(day) && isSameMonth(day, month)
+            const selected = value === selectedDate
+            return (
+              <button key={value} type="button" disabled={!enabled} onClick={() => choose(day)} className={`aspect-square rounded-full text-[11px] font-medium transition ${selected ? 'bg-[#F5C400] text-black shadow-[0_5px_16px_rgba(245,196,0,0.28)]' : enabled ? 'text-[#D7DADE] hover:bg-white/5' : 'text-[#4B4F55]'}`}>{format(day, 'dd')}</button>
+            )
+          })}
+        </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-[#6B7280]">
-        {weekDays.map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
-      </div>
-
-      <div className="grid grid-cols-7 gap-2">
-        {days.map((day) => {
-          const dateStr = format(day, 'yyyy-MM-dd')
-          const isAvailable = availableDays.includes(getDay(day)) && !isBefore(day, today) && isSameMonth(day, month)
-          const isSelected = dateStr === selectedDate
-
-          return (
-            <button
-              key={dateStr}
-              disabled={!isAvailable}
-              onClick={() => onSelect(dateStr)}
-              className={cn(
-                'aspect-square rounded-full text-sm font-semibold transition',
-                isSelected && 'bg-[#F4B400] text-[#08090A] shadow-[0_10px_24px_rgba(244,180,0,0.24)]',
-                !isSelected && isAvailable && 'bg-[#16181D] text-white hover:bg-[#FFCC33] hover:text-[#08090A]',
-                !isAvailable && 'text-[#3F444C]',
-              )}
-            >
-              {format(day, 'd')}
-            </button>
-          )
+      <div className="grid grid-cols-3 gap-2">
+        {[['Hoje', today], ['Amanhã', addDays(today, 1)], [format(addDays(today, 2), 'EEE dd', { locale: ptBR }), addDays(today, 2)]].map(([label, day]) => {
+          const date = day as Date
+          const enabled = available(date)
+          return <button key={String(label)} type="button" disabled={!enabled} onClick={() => choose(date)} className="rounded-lg border border-white/10 bg-[#15171A] px-1 py-2 text-center disabled:opacity-35"><span className="flex items-center justify-center gap-1 text-[10px] font-medium capitalize text-white"><CalendarDays className="h-3.5 w-3.5 text-[#A2A6AD]" />{String(label)}</span><span className="mt-1 block text-[9px] text-[#858A93]">{format(date, 'dd MMM', { locale: ptBR })}</span></button>
         })}
       </div>
     </div>

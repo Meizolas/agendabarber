@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/session'
 import { availabilityRuleSchema } from '@/lib/validations/availability'
 
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 })
 
   const adminClient = createServiceClient()
@@ -27,8 +27,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 })
 
   const body = await request.json()
@@ -60,13 +59,37 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ rule: data }, { status: 201 })
 }
 
+export async function PUT(request: NextRequest) {
+  const user = await getCurrentUser()
+  if (!user) return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 })
+
+  const body = await request.json()
+  const id = typeof body.id === 'string' ? body.id : null
+  const parsed = availabilityRuleSchema.safeParse(body)
+  if (!id || !parsed.success) return NextResponse.json({ error: 'Dados invalidos' }, { status: 400 })
+
+  const admin = createServiceClient()
+  const { data: barber } = await admin.from('barbers').select('id').eq('user_id', user.id).maybeSingle()
+  if (!barber) return NextResponse.json({ error: 'Nao autorizado' }, { status: 403 })
+
+  const { data, error } = await admin
+    .from('availability_rules')
+    .update(parsed.data)
+    .eq('id', id)
+    .eq('barber_id', barber.id)
+    .select()
+    .single()
+
+  if (error || !data) return NextResponse.json({ error: error?.message ?? 'Horario nao encontrado' }, { status: 404 })
+  return NextResponse.json({ rule: data })
+}
+
 export async function DELETE(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'ID obrigatorio' }, { status: 400 })
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 })
 
   const adminClient = createServiceClient()

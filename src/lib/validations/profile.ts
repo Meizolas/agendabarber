@@ -16,6 +16,7 @@ export const profileSchema = z.object({
       /^[a-z0-9-]+$/,
       'Use apenas letras minúsculas, números e hífens',
     ),
+  logo_url: z.string().url().nullable().optional(),
 })
 
 export type ProfileInput = z.infer<typeof profileSchema>

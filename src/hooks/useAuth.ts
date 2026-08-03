@@ -1,35 +1,26 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { User } from '@supabase/supabase-js'
-import { createClient } from '@/lib/supabase/client'
+
+type ClientUser = { id: string; email: string | null }
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<ClientUser | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [supabase])
+    fetch('/api/auth/session', { cache: 'no-store' })
+      .then(async (response) => response.ok ? response.json() : { user: null })
+      .then((payload) => setUser(payload.user ?? null))
+      .finally(() => setLoading(false))
+  }, [])
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => null)
     await fetch('/api/demo-logout', { method: 'POST' }).catch(() => null)
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem('agendbarber_demo_role')
-    }
+    window.localStorage.removeItem('agendbarber_demo_role')
     setUser(null)
     router.replace('/login')
     router.refresh()

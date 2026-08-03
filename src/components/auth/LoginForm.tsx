@@ -5,20 +5,17 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Chrome, Eye, EyeOff, Loader2, LockKeyhole, Mail, Scissors } from 'lucide-react'
+import { Eye, EyeOff, Loader2, LockKeyhole, Mail } from 'lucide-react'
 import { loginSchema, type LoginInput } from '@/lib/validations/auth'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
+import { AuthShell } from '@/components/auth/AuthShell'
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [googleLoading, setGoogleLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
   const { toast } = useToast()
 
   const {
@@ -29,129 +26,70 @@ export function LoginForm() {
 
   const onSubmit = async (data: LoginInput) => {
     setLoading(true)
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
     })
+    const result = await response.json().catch(() => null)
 
-    if (error) {
+    if (!response.ok) {
       toast({
         title: 'Erro ao entrar',
-        description: error.message === 'Invalid login credentials'
-          ? 'E-mail ou senha incorretos.'
-          : error.message,
+        description: result?.error ?? 'Nao foi possivel entrar.',
         variant: 'destructive',
       })
       setLoading(false)
       return
     }
 
+    if (result?.migrated) {
+      toast({ title: 'Conta atualizada', description: 'Sua conta agora usa a autenticacao segura do AgendBarber.' })
+    }
     router.replace('/dashboard')
     router.refresh()
   }
 
-  const signInWithGoogle = async () => {
-    setGoogleLoading(true)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/dashboard` },
-    })
-    if (error) {
-      toast({ title: 'Erro no Google Login', description: error.message, variant: 'destructive' })
-      setGoogleLoading(false)
-    }
-  }
-
   return (
-    <section className="relative flex min-h-[calc(100vh-2rem)] flex-1 flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#0B0D0F] px-5 py-5 shadow-[0_22px_80px_rgba(0,0,0,0.55)]">
-      <PhoneStatus />
-
-      <div className="mt-10 flex flex-col items-center">
-        <div className="grid h-12 w-12 place-items-center rounded-lg text-[#F4B400]">
-          <Scissors className="h-9 w-9" />
-        </div>
-        <p className="mt-2 text-sm font-bold uppercase tracking-[0.24em] text-white">Barber</p>
-        <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[#F4B400]">House</p>
+    <AuthShell>
+      <div className="mt-9 text-center">
+        <h1 className="text-[25px] font-semibold leading-tight text-white">Bem-vindo de volta</h1>
+        <p className="mt-1.5 text-sm text-[#9A9EA6]">Faça login para continuar</p>
       </div>
 
-      <div className="mt-8 text-center">
-        <h1 className="text-[24px] font-semibold leading-tight text-white">Bem-vindo de volta</h1>
-        <p className="mt-2 text-sm text-[#8F949D]">Faça login para continuar</p>
-      </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-7 space-y-4">
-        <Field label="E-mail" error={errors.email?.message}>
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-7 space-y-3.5">
+        <Field error={errors.email?.message}>
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5E646E]" />
-            <Input id="email" type="email" placeholder="Digite seu e-mail" className="premium-input border-white/5 bg-[#14171A] pl-10" {...register('email')} />
+            <Mail className="absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#A5A9B0]" />
+            <Input id="email" type="email" autoComplete="email" placeholder="E-mail" aria-label="E-mail" className="auth-field pl-11" {...register('email')} />
           </div>
         </Field>
 
-        <Field label="Senha" error={errors.password?.message}>
+        <Field error={errors.password?.message}>
           <div className="relative">
-            <LockKeyhole className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5E646E]" />
-            <Input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Digite sua senha"
-              className="premium-input border-white/5 bg-[#14171A] pl-10 pr-10"
-              {...register('password')}
-            />
-            <button
-              type="button"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8F949D] transition hover:text-white"
-              onClick={() => setShowPassword(!showPassword)}
-              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            <LockKeyhole className="absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#A5A9B0]" />
+            <Input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Senha" aria-label="Senha" className="auth-field pl-11 pr-11" {...register('password')} />
+            <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8F949D] transition hover:text-white" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>
+              {showPassword ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
             </button>
           </div>
         </Field>
 
-        <div className="flex justify-end">
-          <Link href="/login" className="text-xs font-medium text-[#D99A12]">Esqueci minha senha</Link>
-        </div>
+        <Link href="/esqueci-senha" className="block py-1 text-center text-xs font-medium text-[#F5C400] transition hover:text-[#FFD21A]">Esqueci minha senha</Link>
 
-        <Button type="submit" className="premium-button w-full rounded-md" disabled={loading}>
+        <Button type="submit" className="gold-action w-full" disabled={loading}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Entrar'}
         </Button>
       </form>
 
-      <div className="my-5 flex items-center gap-3">
-        <div className="h-px flex-1 bg-white/10" />
-        <span className="text-xs text-[#6B7280]">ou continue com</span>
-        <div className="h-px flex-1 bg-white/10" />
-      </div>
-
-      <Button type="button" variant="outline" className="h-11 w-full border-white/10 bg-[#101214] text-white hover:bg-white/5" onClick={signInWithGoogle} disabled={googleLoading}>
-        {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Chrome className="h-4 w-4" />}
-        Google
-      </Button>
-
-      <p className="mt-auto pt-6 text-center text-sm text-[#8F949D]">
+      <p className="mt-auto pt-8 text-center text-sm text-[#9A9EA6]">
         Não tem uma conta?{' '}
-        <Link href="/cadastro" className="font-semibold text-[#F4B400]">Criar conta</Link>
+        <Link href="/cadastro" className="font-medium text-[#F5C400] hover:text-[#FFD21A]">Criar conta</Link>
       </p>
-    </section>
+    </AuthShell>
   )
 }
 
-function PhoneStatus() {
-  return (
-    <div className="flex items-center justify-between text-[11px] font-semibold text-white">
-      <span>9:30</span>
-      <span className="tracking-[0.18em]">•••</span>
-    </div>
-  )
-}
-
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-2">
-      <Label className="text-xs font-medium text-[#B8BDC6]">{label}</Label>
-      {children}
-      {error && <p className="text-xs text-[#EF4444]">{error}</p>}
-    </div>
-  )
+function Field({ error, children }: { error?: string; children: React.ReactNode }) {
+  return <div>{children}{error && <p className="mt-1.5 text-xs text-[#F87171]">{error}</p>}</div>
 }

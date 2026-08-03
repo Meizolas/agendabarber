@@ -20,6 +20,7 @@ export const serviceSchema = z.object({
       (value) => !Number.isNaN(value) && value > 0 && value <= 480,
       'Duracao invalida (max. 8h)',
     ),
+  is_active: z.boolean().optional(),
 })
 
 export type ServiceInput = z.infer<typeof serviceSchema>

@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/session'
 import { createAppointmentSchema } from '@/lib/validations/appointment'
 import { sendAppointmentNotifications } from '@/lib/whatsapp/evolution'
 import { enforceRateLimit, requestFingerprint } from '@/lib/security/request'
+import type { Appointment } from '@/types'
+import { getBillingAccessByBarberId } from '@/lib/billing/access'
 
 export async function GET(request: NextRequest) {
   try {
-    const authClient = await createClient()
-    const { data: { user } } = await authClient.auth.getUser()
+    const user = await getCurrentUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Nao autorizado' }, { status: 401 })
@@ -97,6 +99,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Barbeiro nao encontrado' }, { status: 404 })
     }
 
+    const billingAccess = await getBillingAccessByBarberId(barber.id)
+    if (!billingAccess.allowed) {
+      return NextResponse.json(
+        { error: 'Agenda temporariamente indisponivel.', code: 'PAYMENT_REQUIRED' },
+        { status: 402 },
+      )
+    }
+
     const { data: service } = await supabase
       .from('services')
       .select('id, name, price, duration_minutes')
@@ -137,11 +147,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const createdAppointment = appointment as Appointment | null
+    if (!createdAppointment) {
+      return NextResponse.json({ error: 'Agendamento nao retornado pelo banco.' }, { status: 500 })
+    }
+
     let notificationError: string | null = null
 
     try {
       await sendAppointmentNotifications({
-        appointmentId: appointment.id,
+        appointmentId: createdAppointment.id,
         clientName: data.client_name,
         clientWhatsapp: data.client_whatsapp,
         barberWhatsapp: barber.whatsapp,
@@ -158,7 +173,7 @@ export async function POST(request: NextRequest) {
       console.error('[WhatsApp] Error:', err)
     }
 
-    return NextResponse.json({ appointment, notificationError }, { status: 201 })
+    return NextResponse.json({ appointment: createdAppointment, notificationError }, { status: 201 })
   } catch (err) {
     console.error('[Appointments POST] Unexpected error:', err)
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })

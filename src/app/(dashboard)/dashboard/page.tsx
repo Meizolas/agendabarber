@@ -1,36 +1,30 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { CalendarClock, ChevronRight, Share2 } from 'lucide-react'
+import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/session'
 import { Header } from '@/components/dashboard/Header'
-import { StatsCard } from '@/components/dashboard/StatsCard'
-import { AppointmentCard } from '@/components/dashboard/AppointmentCard'
-import { CalendarCheck, CheckCircle2, Clock, TrendingUp } from 'lucide-react'
-import { formatDateShort } from '@/lib/utils/format'
+import { formatTime } from '@/lib/utils/format'
 import { addCalendarDays, getSaoPauloDate } from '@/lib/utils/timezone'
+import { getPublicAppUrl } from '@/lib/utils/app-url'
 import type { Metadata } from 'next'
 import type { Appointment } from '@/types'
 
 export const metadata: Metadata = { title: 'Dashboard | AgendBarber' }
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
+  const user = await getCurrentUser()
   if (!user) redirect('/login')
 
-  const adminClient = createServiceClient()
-
-  const { data: barber } = await adminClient
-    .from('barbers')
-    .select('*')
-    .eq('user_id', user.id)
-    .single()
-
+  const admin = createServiceClient()
+  const { data: barber } = await admin.from('barbers').select('*').eq('user_id', user.id).single()
   if (!barber) redirect('/perfil')
 
   const today = getSaoPauloDate()
   const weekEnd = addCalendarDays(today, 6)
-
-  const { data: upcomingAppointments } = await adminClient
+  const { data: upcomingAppointments } = await admin
     .from('appointments')
     .select('*, service:services(*)')
     .eq('barber_id', barber.id)
@@ -40,85 +34,79 @@ export default async function DashboardPage() {
     .order('appointment_date', { ascending: true })
     .order('appointment_time', { ascending: true })
 
-  const { count: completedToday } = await adminClient
-    .from('appointments')
-    .select('*', { count: 'exact', head: true })
-    .eq('barber_id', barber.id)
-    .eq('appointment_date', today)
-    .eq('status', 'completed')
-
-  const { count: totalMonth } = await adminClient
-    .from('appointments')
-    .select('*', { count: 'exact', head: true })
-    .eq('barber_id', barber.id)
-    .gte('appointment_date', `${today.slice(0, 7)}-01`)
-    .neq('status', 'cancelled')
+  const { count: completedToday } = await admin.from('appointments').select('*', { count: 'exact', head: true })
+    .eq('barber_id', barber.id).eq('appointment_date', today).eq('status', 'completed')
+  const { count: totalMonth } = await admin.from('appointments').select('*', { count: 'exact', head: true })
+    .eq('barber_id', barber.id).gte('appointment_date', `${today.slice(0, 7)}-01`).neq('status', 'cancelled')
 
   const appointments = (upcomingAppointments ?? []) as Appointment[]
-  const todayAppointmentsCount = appointments.filter((appointment) => appointment.appointment_date === today).length
+  const todayAppointments = appointments.filter((item) => item.appointment_date === today)
+  const next = appointments[0]
+  const firstName = barber.barber_name.split(' ')[0]
+  const dateLabel = format(parseISO(today), "EEEE, dd 'de' MMMM", { locale: ptBR })
+  const appUrl = getPublicAppUrl()
 
   return (
     <>
-      <Header barber={barber} title="Dashboard" notifications={appointments} />
-      <div className="flex-1 space-y-5 p-4 sm:space-y-6 sm:p-6">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-          <StatsCard
-            title="Agendamentos hoje"
-            value={todayAppointmentsCount}
-            description={formatDateShort(today)}
-            icon={CalendarCheck}
-            color="amber"
-          />
-          <StatsCard
-            title="Proximos 7 dias"
-            value={appointments.length}
-            description={`${formatDateShort(today)} ate ${formatDateShort(weekEnd)}`}
-            icon={Clock}
-            color="blue"
-          />
-          <StatsCard
-            title="Concluidos hoje"
-            value={completedToday ?? 0}
-            description="atendimentos realizados"
-            icon={CheckCircle2}
-            color="green"
-          />
-          <StatsCard
-            title="Total no mes"
-            value={totalMonth ?? 0}
-            description="agendamentos no mes"
-            icon={TrendingUp}
-            color="amber"
-          />
+      <Header barber={barber} title={`Olá, ${firstName}`} subtitle={dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)} notifications={appointments} />
+      <div className="flex-1 space-y-4 px-4 pb-5">
+        <div className="flex justify-end">
+          <Link href={`${appUrl}/agendar/${barber.slug}`} target="_blank" className="inline-flex h-9 items-center gap-2 rounded-md border border-[#F5C400]/70 px-3 text-xs font-medium text-[#F5C400] hover:bg-[#F5C400]/10">
+            <Share2 className="h-3.5 w-3.5" /> Compartilhar link
+          </Link>
         </div>
 
-        <div>
-          <h2 className="mb-3 text-base font-semibold text-slate-700 sm:mb-4 sm:text-lg">
-            Proximos 7 dias
-          </h2>
-
-          {appointments.length === 0 ? (
-            <div className="rounded-lg border bg-white p-6 text-center sm:p-10">
-              <CalendarCheck className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500 font-medium">Nenhum agendamento confirmado na semana</p>
-              <p className="text-sm text-slate-400 mt-1">
-                Compartilhe seu link e comece a receber clientes.
-              </p>
+        <section className="dashboard-card overflow-hidden">
+          <div className="flex items-center justify-between border-b border-white/[0.07] px-3 py-2.5">
+            <p className="flex items-center gap-2 text-xs text-[#D7DADE]"><CalendarClock className="h-4 w-4 text-[#F5C400]" /> Próximo atendimento</p>
+            <Link href="/agendamentos" aria-label="Ver agenda"><ChevronRight className="h-4 w-4 text-[#858A93]" /></Link>
+          </div>
+          {next ? (
+            <div className="flex items-center gap-3 px-3 py-3">
+              <div className="min-w-[58px] border-r border-white/10 pr-3 text-center text-[20px] font-semibold text-[#F5C400]">{formatTime(next.appointment_time)}</div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-white">{next.client_name}</p>
+                <p className="truncate text-[11px] text-[#858A93]">{next.service?.name ?? 'Serviço'}</p>
+              </div>
+              <span className="rounded-full bg-[#22C55E]/15 px-2 py-1 text-[9px] font-medium text-[#65D787]">Confirmado</span>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {appointments.map((apt) => (
-                <div key={apt.id} className="space-y-2">
-                  <p className="text-xs font-semibold uppercase text-[#9CA3AF]">
-                    {formatDateShort(apt.appointment_date)}
-                  </p>
-                  <AppointmentCard appointment={apt} />
-                </div>
-              ))}
-            </div>
+            <p className="px-4 py-5 text-center text-xs text-[#858A93]">Nenhum atendimento próximo.</p>
           )}
+        </section>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <MiniStat label="Hoje" value={todayAppointments.length} />
+          <MiniStat label="Próximos 7 dias" value={appointments.length} />
+          <MiniStat label="Concluídos" value={completedToday ?? 0} />
+          <MiniStat label="No mês" value={totalMonth ?? 0} />
         </div>
+
+        <section>
+          <h2 className="mb-3 border-l-2 border-[#F5C400] pl-2 text-sm font-medium text-white">Agenda de hoje</h2>
+          <div className="dashboard-card px-3 pb-3 pt-4">
+            <div className="grid grid-cols-[30px_1fr] gap-2">
+              <div className="flex h-28 flex-col justify-between text-[9px] text-[#737881]"><span>09:00</span><span>12:00</span><span>15:00</span><span>18:00</span></div>
+              <div className="relative flex h-28 items-end justify-around border-b border-white/10">
+                <span className="absolute inset-x-0 top-1/3 border-t border-dashed border-white/[0.06]" />
+                <span className="absolute inset-x-0 top-2/3 border-t border-dashed border-white/[0.06]" />
+                {[40, 67, 52, 35, 61, 82, 48, 70, 45].map((height, index) => (
+                  <span key={index} className={`relative w-3 rounded-t-sm ${index === 5 ? 'bg-[#F5C400]' : 'bg-[#5B6068]'}`} style={{ height: `${height}%` }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </>
+  )
+}
+
+function MiniStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="dashboard-card px-3 py-3 text-center">
+      <p className="text-[11px] text-[#858A93]">{label}</p>
+      <p className="mt-1 text-[25px] font-semibold leading-none text-white">{value}</p>
+    </div>
   )
 }

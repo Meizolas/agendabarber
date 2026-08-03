@@ -1,22 +1,23 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { AvailabilityRule, BlockedTime, DAY_NAMES } from '@/types'
+import { AvailabilityRule, Barber, BlockedTime } from '@/types'
 import { AvailabilityForm } from '@/components/schedule/AvailabilityForm'
 import { BlockTimeForm } from '@/components/schedule/BlockTimeForm'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { Header } from '@/components/dashboard/Header'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { PageLoading } from '@/components/shared/LoadingSpinner'
-import { Plus, Trash2, Clock, Ban } from 'lucide-react'
+import { Plus, Trash2, Ban, Clock3 } from 'lucide-react'
 import { formatDateShort, formatTime } from '@/lib/utils/format'
 import type { AvailabilityRuleInput, BlockTimeInput } from '@/lib/validations/availability'
 import { demoBarber, demoRules } from '@/lib/demo-data'
 import { DEMO_STORAGE_KEY } from '@/lib/demo-session'
 
 export default function HorariosPage() {
-  const [barber, setBarber] = useState<any>(null)
+  const [barber, setBarber] = useState<Barber | null>(null)
   const [rules, setRules] = useState<AvailabilityRule[]>([])
   const [blockedTimes, setBlockedTimes] = useState<BlockedTime[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,6 +27,8 @@ export default function HorariosPage() {
   const [deleteRuleId, setDeleteRuleId] = useState<string | null>(null)
   const [deleteBlockId, setDeleteBlockId] = useState<string | null>(null)
   const [demoMode, setDemoMode] = useState(false)
+  const [selectedDay, setSelectedDay] = useState(1)
+  const [draft, setDraft] = useState({ start: '09:00', end: '18:00', interval: 30, active: true, lunchStart: '12:00', lunchEnd: '13:00' })
 
   const { toast } = useToast()
 
@@ -62,6 +65,22 @@ export default function HorariosPage() {
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
+
+  const selectedRule = rules.find((rule) => rule.day_of_week === selectedDay)
+
+  useEffect(() => {
+    if (!selectedRule) {
+      setDraft((current) => ({ ...current, start: '09:00', end: '18:00', interval: 30, active: false }))
+      return
+    }
+    setDraft((current) => ({
+      ...current,
+      start: formatTime(selectedRule.start_time),
+      end: formatTime(selectedRule.end_time),
+      interval: selectedRule.interval_minutes,
+      active: selectedRule.is_active,
+    }))
+  }, [selectedRule])
 
   const handleAddRule = async (data: AvailabilityRuleInput) => {
     if (!barber) return
@@ -190,109 +209,97 @@ export default function HorariosPage() {
     }
   }
 
+  const handleSaveSelectedRule = async () => {
+    if (!selectedRule) {
+      setAvailFormOpen(true)
+      return
+    }
+    setFormLoading(true)
+    const payload = {
+      id: selectedRule.id,
+      day_of_week: selectedDay,
+      start_time: draft.start,
+      end_time: draft.end,
+      interval_minutes: draft.interval,
+      is_active: draft.active,
+    }
+
+    if (demoMode) {
+      setRules((current) => current.map((rule) => rule.id === selectedRule.id ? { ...rule, ...payload } : rule))
+      toast({ title: 'Horários atualizados!' })
+      setFormLoading(false)
+      return
+    }
+
+    const response = await fetch('/api/availability', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const result = await response.json().catch(() => null)
+    if (!response.ok) toast({ title: 'Erro ao salvar', description: result?.error ?? 'Tente novamente.', variant: 'destructive' })
+    else {
+      setRules((current) => current.map((rule) => rule.id === selectedRule.id ? result.rule : rule))
+      toast({ title: 'Horários atualizados!' })
+    }
+    setFormLoading(false)
+  }
+
   if (loading) return <PageLoading />
 
   const existingDays = rules.map((r) => r.day_of_week)
 
   return (
     <>
-      <Header barber={barber} title="Horários" />
-      <div className="flex-1 space-y-7 p-4 sm:space-y-8 sm:p-6">
+      <Header barber={barber} title="Horários de atendimento" />
+      <div className="flex-1 space-y-4 px-4 pb-5">
+        <div className="grid grid-cols-7 gap-1.5">
+          {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((label, day) => (
+            <button key={label} type="button" onClick={() => setSelectedDay(day)} className={`aspect-square rounded-full text-[9px] font-medium transition ${selectedDay === day ? 'bg-[#F5C400] text-black' : 'border border-white/10 bg-[#15181B] text-[#858A93]'}`}>{label}</button>
+          ))}
+        </div>
 
-        {/* Regras de disponibilidade */}
-        <section>
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold text-slate-700">Dias de atendimento</h2>
-            <Button
-              className="bg-amber-500 hover:bg-amber-600 gap-2"
-              size="sm"
-              onClick={() => setAvailFormOpen(true)}
-              disabled={existingDays.length === 7}
-            >
-              <Plus className="h-4 w-4" />
-              Adicionar dia
-            </Button>
+        <p className="text-sm font-semibold text-[#F5C400]">{['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][selectedDay]}</p>
+
+        {selectedRule ? (
+          <section className="dashboard-card space-y-4 p-4">
+            <TimeField label="Abertura" value={draft.start} onChange={(value) => setDraft((current) => ({ ...current, start: value }))} />
+            <TimeField label="Fechamento" value={draft.end} onChange={(value) => setDraft((current) => ({ ...current, end: value }))} />
+            <div>
+              <p className="mb-2 text-[11px] text-[#858A93]">Intervalo para almoço</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input type="time" value={draft.lunchStart} onChange={(event) => setDraft((current) => ({ ...current, lunchStart: event.target.value }))} className="dashboard-field" />
+                <Input type="time" value={draft.lunchEnd} onChange={(event) => setDraft((current) => ({ ...current, lunchEnd: event.target.value }))} className="dashboard-field" />
+              </div>
+            </div>
+            <div>
+              <label className="mb-2 block text-[11px] text-[#858A93]">Intervalo entre horários</label>
+              <select value={draft.interval} onChange={(event) => setDraft((current) => ({ ...current, interval: Number(event.target.value) }))} className="dashboard-field w-full px-3">
+                {[15, 20, 30, 45, 60].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
+              </select>
+            </div>
+            <div className="flex items-center justify-between border-t border-white/[0.07] pt-3">
+              <span className="text-xs text-[#A2A6AD]">Dia disponível</span>
+              <button type="button" role="switch" aria-checked={draft.active} onClick={() => setDraft((current) => ({ ...current, active: !current.active }))} className={`relative h-6 w-10 rounded-full ${draft.active ? 'bg-[#F5C400]' : 'bg-[#3D4147]'}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${draft.active ? 'left-[18px]' : 'left-0.5'}`} /></button>
+            </div>
+          </section>
+        ) : (
+          <button type="button" onClick={() => setAvailFormOpen(true)} className="dashboard-card grid w-full place-items-center gap-2 p-7 text-xs text-[#858A93]"><Plus className="h-6 w-6 text-[#F5C400]" /> Configurar este dia</button>
+        )}
+
+        <Button className="gold-action w-full" onClick={handleSaveSelectedRule} disabled={formLoading}>{formLoading ? 'Salvando...' : selectedRule ? 'Salvar horários' : 'Adicionar dia'}</Button>
+
+        <section className="pt-1">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-xs font-medium text-white"><Ban className="h-4 w-4 text-[#F5C400]" /> Horários bloqueados</h2>
+            <Button variant="ghost" size="sm" className="h-8 gap-1 text-[10px] text-[#F5C400]" onClick={() => setBlockFormOpen(true)}><Plus className="h-3.5 w-3.5" /> Bloquear</Button>
           </div>
-
-          {rules.length === 0 ? (
-            <div className="rounded-lg border bg-white p-8 text-center">
-              <Clock className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-slate-500">Nenhum dia configurado ainda</p>
+          {blockedTimes.length === 0 ? <p className="dashboard-card px-3 py-4 text-center text-[11px] text-[#737881]">Nenhum horário bloqueado</p> : blockedTimes.map((bt) => (
+            <div key={bt.id} className="dashboard-card mb-2 flex items-center justify-between px-3 py-2.5 text-xs">
+              <span><strong>{formatDateShort(bt.blocked_date)}</strong>{bt.blocked_time ? ` às ${formatTime(bt.blocked_time)}` : ' — dia inteiro'}</span>
+              <button onClick={() => setDeleteBlockId(bt.id)} className="text-[#F87171]"><Trash2 className="h-4 w-4" /></button>
             </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {rules
-                .sort((a, b) => a.day_of_week - b.day_of_week)
-                .map((rule) => (
-                  <div key={rule.id} className="rounded-lg border bg-white p-4 shadow-sm flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-slate-800">
-                        {DAY_NAMES[rule.day_of_week as keyof typeof DAY_NAMES]}
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        {formatTime(rule.start_time)} – {formatTime(rule.end_time)}
-                        {' · '}a cada {rule.interval_minutes} min
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-slate-400 hover:text-red-500 h-8 w-8"
-                      onClick={() => setDeleteRuleId(rule.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-            </div>
-          )}
-        </section>
-
-        {/* Horários bloqueados */}
-        <section>
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold text-slate-700">Horários bloqueados</h2>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => setBlockFormOpen(true)}
-            >
-              <Ban className="h-4 w-4" />
-              Bloquear horário
-            </Button>
-          </div>
-
-          {blockedTimes.length === 0 ? (
-            <div className="rounded-lg border bg-white p-8 text-center">
-              <Ban className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-slate-500">Nenhum horário bloqueado</p>
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {blockedTimes.map((bt) => (
-                <div key={bt.id} className="rounded-lg border bg-white p-4 shadow-sm flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-slate-800">
-                      {formatDateShort(bt.blocked_date)}
-                      {bt.blocked_time
-                        ? ` às ${formatTime(bt.blocked_time)}`
-                        : ' — dia inteiro'}
-                    </p>
-                    {bt.reason && <p className="text-sm text-slate-500">{bt.reason}</p>}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-slate-400 hover:text-red-500 h-8 w-8"
-                    onClick={() => setDeleteBlockId(bt.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+          ))}
         </section>
       </div>
 
@@ -329,5 +336,14 @@ export default function HorariosPage() {
         onConfirm={handleDeleteBlock}
       />
     </>
+  )
+}
+
+function TimeField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div>
+      <label className="mb-2 block text-[11px] text-[#858A93]">{label}</label>
+      <div className="relative"><Input type="time" value={value} onChange={(event) => onChange(event.target.value)} className="dashboard-field pr-10" /><Clock3 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#858A93]" /></div>
+    </div>
   )
 }

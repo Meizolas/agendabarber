@@ -1,22 +1,23 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Service } from '@/types'
+import { Barber, Service } from '@/types'
 import { ServiceCard } from '@/components/services/ServiceCard'
 import { ServiceForm } from '@/components/services/ServiceForm'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { Header } from '@/components/dashboard/Header'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/use-toast'
 import { PageLoading } from '@/components/shared/LoadingSpinner'
-import { Plus, Scissors } from 'lucide-react'
+import { Plus, Scissors, Search, SlidersHorizontal } from 'lucide-react'
 import type { ServiceInput } from '@/lib/validations/service'
 import { demoBarber } from '@/lib/demo-data'
 import { DEMO_STORAGE_KEY } from '@/lib/demo-session'
 import { getStoredDemoServices, saveStoredDemoServices } from '@/lib/demo-store'
 
 export default function ServicosPage() {
-  const [barber, setBarber] = useState<any>(null)
+  const [barber, setBarber] = useState<Barber | null>(null)
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
@@ -28,6 +29,7 @@ export default function ServicosPage() {
   })
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
+  const [search, setSearch] = useState('')
 
   const { toast } = useToast()
 
@@ -207,41 +209,72 @@ export default function ServicosPage() {
     setDeleteLoading(false)
   }
 
+  const handleToggle = async (service: Service) => {
+    const nextActive = !service.is_active
+    const nextServices = services.map((item) => item.id === service.id ? { ...item, is_active: nextActive } : item)
+    persistServicesState(nextServices)
+    if (demoMode) return
+
+    const response = await fetch(`/api/services/${service.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: service.name,
+        image_url: service.image_url ?? '',
+        price: service.price,
+        duration_minutes: service.duration_minutes,
+        is_active: nextActive,
+      }),
+    })
+    if (!response.ok) {
+      persistServicesState(services)
+      toast({ title: 'Não foi possível alterar o serviço', variant: 'destructive' })
+    }
+  }
+
   if (loading) return <PageLoading />
+  const visibleServices = services.filter((service) => service.name.toLowerCase().includes(search.toLowerCase()))
 
   return (
     <>
-      <Header barber={barber} title="Servicos" />
-      <div className="flex-1 p-4 sm:p-6">
-        <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-slate-500 text-sm">
-            {services.length} {services.length === 1 ? 'servico cadastrado' : 'servicos cadastrados'}
-          </p>
+      <Header barber={barber} title="Serviços" />
+      <div className="flex-1 px-4 pb-5">
+        <div className="mb-3">
           <Button
-            className="gap-2 bg-amber-500 hover:bg-amber-600"
+            variant="outline"
+            className="h-10 w-full gap-2 border-[#F5C400] bg-transparent text-xs text-[#F5C400] hover:bg-[#F5C400]/10 hover:text-[#F5C400]"
             onClick={() => { setEditingService(null); setFormOpen(true) }}
           >
             <Plus className="h-4 w-4" />
-            Novo servico
+            Novo serviço
           </Button>
         </div>
 
+        <div className="mb-3 grid grid-cols-[1fr_auto] gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#737881]" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar serviço" className="dashboard-field pl-9" />
+          </div>
+          <Button variant="outline" className="h-11 gap-2 border-white/10 bg-[#101214] px-3 text-xs text-[#A2A6AD]"><SlidersHorizontal className="h-4 w-4" /> Filtro</Button>
+        </div>
+
         {services.length === 0 ? (
-          <div className="rounded-lg border bg-white p-8 text-center sm:p-12">
-            <Scissors className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-            <p className="font-medium text-slate-500">Nenhum servico cadastrado</p>
-            <p className="text-sm text-slate-400 mt-1">
-              Adicione os servicos que voce oferece
+          <div className="dashboard-card p-8 text-center">
+            <Scissors className="mx-auto mb-3 h-10 w-10 text-[#F5C400]" />
+            <p className="text-sm font-medium text-white">Nenhum serviço cadastrado</p>
+            <p className="mt-1 text-xs text-[#858A93]">
+              Adicione os serviços que você oferece
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {services.map((service) => (
+          <div className="space-y-2.5">
+            {visibleServices.map((service) => (
               <ServiceCard
                 key={service.id}
                 service={service}
                 onEdit={(s) => { setEditingService(s); setFormOpen(true) }}
                 onDelete={(s) => setDeleteDialog({ open: true, service: s })}
+                onToggle={handleToggle}
               />
             ))}
           </div>
