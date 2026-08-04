@@ -5,6 +5,27 @@ import { getBillingAccessByUserId } from '@/lib/billing/access'
 import { isTrustedMutationRequest } from '@/lib/security/request'
 
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+  const isAsaasWebhook = pathname === '/api/webhooks/asaas'
+  const isSessionlessPublicRequest = Boolean(
+    pathname.startsWith('/agendar')
+    || pathname.startsWith('/api/public/')
+    || (pathname === '/api/available-slots' && request.method === 'GET')
+    || (pathname === '/api/appointments' && request.method === 'POST')
+  )
+
+  if (isAsaasWebhook || isSessionlessPublicRequest) {
+    if (
+      !isAsaasWebhook
+      && pathname.startsWith('/api/')
+      && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)
+      && !isTrustedMutationRequest(request)
+    ) {
+      return NextResponse.json({ error: 'Origem da requisicao nao permitida.' }, { status: 403 })
+    }
+    return NextResponse.next()
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -26,7 +47,6 @@ export async function proxy(request: NextRequest) {
     },
   )
 
-  const pathname = request.nextUrl.pathname
   const localUser = await findLocalUserBySessionToken(
     request.cookies.get(SESSION_COOKIE_NAME)?.value,
   ).catch(() => null)
@@ -50,10 +70,10 @@ export async function proxy(request: NextRequest) {
     '/horarios',
     '/agendamentos',
     '/perfil',
+    '/equipe',
     '/assinatura',
   ].some((route) => pathname.startsWith(route))
   const isSubscriptionRoute = pathname.startsWith('/assinatura')
-  const isAsaasWebhook = pathname === '/api/webhooks/asaas'
   const isPaidAdminApi = [
     '/api/appointments',
     '/api/availability',
@@ -61,6 +81,7 @@ export async function proxy(request: NextRequest) {
     '/api/profile',
     '/api/service-images',
     '/api/services',
+    '/api/staff',
     '/api/whatsapp',
   ].some((route) => pathname.startsWith(route))
 

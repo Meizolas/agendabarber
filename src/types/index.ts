@@ -22,6 +22,19 @@ export interface Service {
   updated_at: string
 }
 
+export interface StaffMember {
+  id: string
+  barber_id: string
+  name: string
+  whatsapp: string | null
+  photo_url: string | null
+  is_owner: boolean
+  is_active: boolean
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
 export interface AvailabilityRule {
   id: string
   barber_id: string
@@ -46,6 +59,7 @@ export interface Appointment {
   id: string
   barber_id: string
   service_id: string
+  staff_member_id?: string | null
   client_name: string
   client_whatsapp: string
   appointment_date: string
@@ -56,6 +70,7 @@ export interface Appointment {
   updated_at: string
   service?: Service
   barber?: Barber
+  staff_member?: StaffMember
 }
 
 export interface WhatsAppLog {

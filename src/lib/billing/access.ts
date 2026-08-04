@@ -68,20 +68,10 @@ function evaluate(barber: AccessBarber, subscription: AccessSubscription | null)
   }
 }
 
-async function subscriptionForBarber(barber: AccessBarber) {
-  const { data } = await createServiceClient()
-    .from('subscriptions')
-    .select('status, current_period_end, grace_until')
-    .eq('barber_id', barber.id)
-    .maybeSingle()
-
-  return evaluate(barber, data as AccessSubscription | null)
-}
-
 export async function getBillingAccessByUserId(userId: string): Promise<BillingAccess> {
   const { data: barber } = await createServiceClient()
     .from('barbers')
-    .select('id, access_override_until')
+    .select('id, access_override_until, subscriptions(status, current_period_end, grace_until)')
     .eq('user_id', userId)
     .maybeSingle()
 
@@ -89,13 +79,15 @@ export async function getBillingAccessByUserId(userId: string): Promise<BillingA
     return { allowed: false, reason: 'barber_not_found', barberId: null, subscriptionStatus: null }
   }
 
-  return subscriptionForBarber(barber as AccessBarber)
+  const relation = (barber as unknown as { subscriptions?: AccessSubscription | AccessSubscription[] | null }).subscriptions
+  const subscription = Array.isArray(relation) ? relation[0] ?? null : relation ?? null
+  return evaluate(barber as AccessBarber, subscription)
 }
 
 export async function getBillingAccessByBarberId(barberId: string): Promise<BillingAccess> {
   const { data: barber } = await createServiceClient()
     .from('barbers')
-    .select('id, access_override_until')
+    .select('id, access_override_until, subscriptions(status, current_period_end, grace_until)')
     .eq('id', barberId)
     .maybeSingle()
 
@@ -103,5 +95,7 @@ export async function getBillingAccessByBarberId(barberId: string): Promise<Bill
     return { allowed: false, reason: 'barber_not_found', barberId: null, subscriptionStatus: null }
   }
 
-  return subscriptionForBarber(barber as AccessBarber)
+  const relation = (barber as unknown as { subscriptions?: AccessSubscription | AccessSubscription[] | null }).subscriptions
+  const subscription = Array.isArray(relation) ? relation[0] ?? null : relation ?? null
+  return evaluate(barber as AccessBarber, subscription)
 }

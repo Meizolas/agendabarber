@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const createAppointmentSchema = z.object({
+  staff_member_id: z.string().uuid('Profissional inválido'),
   barber_id: z.string().uuid('Barbeiro inválido'),
   service_id: z.string().uuid('Serviço inválido'),
   client_name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres').max(100),

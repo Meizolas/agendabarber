@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { planForAmount } from '@/lib/billing/plans'
 
 type JsonObject = Record<string, unknown>
 
@@ -172,7 +173,11 @@ async function processSubscriptionEvent(
   if (!providerSubscription) return { status: 'ignored' }
 
   const providerId = text(providerSubscription.id)
-  const checkout = await findCheckout(admin, null, text(providerSubscription.externalReference))
+  const checkout = await findCheckout(
+    admin,
+    text(providerSubscription.checkoutSession),
+    text(providerSubscription.externalReference),
+  )
   const subscription = await findSubscription(admin, providerId, checkout?.subscription_id)
   if (!providerId || !subscription) return { status: 'ignored' }
   if (!eventIsNewEnough(subscription.last_event_at, eventAt)) return { status: 'ignored' }
@@ -189,7 +194,12 @@ async function processSubscriptionEvent(
     last_event_at: eventAt,
   }
   const value = number(providerSubscription.value)
-  if (value !== null) changes.amount = value
+  if (value !== null) {
+    const plan = planForAmount(value)
+    changes.amount = value
+    changes.plan_code = plan.code
+    changes.staff_limit = plan.staffLimit
+  }
   if (canceled) {
     changes.status = 'canceled'
     changes.canceled_at = eventAt
@@ -215,9 +225,27 @@ async function processPaymentEvent(
 
   const providerPaymentId = text(payment.id)
   const providerSubscriptionId = text(payment.subscription)
-  const checkout = await findCheckout(admin, null, text(payment.externalReference))
+  const checkout = await findCheckout(
+    admin,
+    text(payment.checkoutSession),
+    text(payment.externalReference),
+  )
   const subscription = await findSubscription(admin, providerSubscriptionId, checkout?.subscription_id)
   if (!providerPaymentId || !subscription) return { status: 'ignored' }
+
+  // O Checkout recorrente do Asaas pode deixar externalReference nulo nos
+  // objetos payment/subscription. checkoutSession e o identificador estavel
+  // que liga esses eventos ao billing_checkout criado pela aplicacao.
+  if (providerSubscriptionId) {
+    const { error: bindingError } = await admin
+      .from('subscriptions')
+      .update({
+        provider_subscription_id: providerSubscriptionId,
+        provider_customer_id: text(payment.customer),
+      })
+      .eq('id', subscription.id)
+    if (bindingError) throw bindingError
+  }
 
   const confirmedAt = asaasDate(payment.confirmedDate)
   const receivedAt = asaasDate(payment.paymentDate) || asaasDate(payment.clientPaymentDate)

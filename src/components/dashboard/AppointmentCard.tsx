@@ -27,6 +27,7 @@ export function AppointmentCard({ appointment, onAction }: AppointmentCardProps)
           <div className="min-w-0">
             <p className="truncate text-xs font-medium text-white">{appointment.client_name}</p>
             <p className="mt-1 truncate text-[10px] text-[#A2A6AD]">{appointment.service?.name ?? 'Serviço'}</p>
+            {appointment.staff_member?.name && <p className="mt-0.5 truncate text-[9px] text-[#F5C400]">com {appointment.staff_member.name}</p>}
             {appointment.service && <p className="mt-0.5 text-[10px] text-[#737881]">{formatPrice(appointment.service.price)}</p>}
           </div>
           <div className="flex items-center gap-1.5">

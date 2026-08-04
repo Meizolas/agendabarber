@@ -1,14 +1,13 @@
-import { CalendarDays, Check, Clock3, MessageCircle, Scissors, Tag } from 'lucide-react'
+import { CalendarDays, Check, Clock3, MessageCircle, Scissors, Tag, UserRound } from 'lucide-react'
 import { formatDate, formatDuration, formatPrice, formatTime, sanitizeWhatsApp } from '@/lib/utils/format'
 import { Button } from '@/components/ui/button'
-import { BrandLogo } from '@/components/premium/BrandLogo'
 
 interface SuccessScreenProps {
   clientName: string
   barbershopName: string
-  barbershopLogo?: string | null
   barbershopWhatsApp?: string | null
   serviceName: string
+  staffName: string
   servicePrice: number
   serviceDuration: number
   date: string
@@ -24,9 +23,9 @@ function calendarStamp(value: Date) {
 export function SuccessScreen({
   clientName,
   barbershopName,
-  barbershopLogo,
   barbershopWhatsApp,
   serviceName,
+  staffName,
   servicePrice,
   serviceDuration,
   date,
@@ -54,18 +53,7 @@ export function SuccessScreen({
   return (
     <div className="auth-surface relative min-h-[calc(100dvh-3rem)] overflow-hidden rounded-[30px] border border-white/[0.08] bg-[#08090B] px-5 pb-7 pt-8 text-center shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
       <div className="relative z-10">
-        <div className="mx-auto flex min-h-16 items-center justify-center">
-          {barbershopLogo ? (
-            <img src={barbershopLogo} alt={`Logo ${barbershopName}`} className="max-h-16 max-w-[180px] object-contain" />
-          ) : (
-            <div>
-              <BrandLogo compact className="justify-center" imageClassName="w-11" />
-              <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#F5C400]">{barbershopName}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="relative mx-auto mt-8 grid h-24 w-24 place-items-center rounded-full border border-[#F5C400] bg-[#F5C400]/[0.07] shadow-[0_0_12px_#F5C400,0_0_42px_rgba(245,196,0,0.42)]">
+        <div className="relative mx-auto mt-2 grid h-24 w-24 place-items-center rounded-full border border-[#F5C400] bg-[#F5C400]/[0.07] shadow-[0_0_12px_#F5C400,0_0_42px_rgba(245,196,0,0.42)]">
           <Check className="h-12 w-12 stroke-[4] text-[#F5C400] drop-shadow-[0_0_8px_rgba(245,196,0,0.8)]" />
           <span className="absolute inset-2 rounded-full border border-[#F5C400]/20" />
         </div>
@@ -73,8 +61,10 @@ export function SuccessScreen({
         <h2 className="mt-7 text-[25px] font-semibold leading-[1.05] text-white">
           Agendamento<br /><span className="text-[#F5C400]">confirmado!</span>
         </h2>
+        <p className="mx-auto mt-3 max-w-[280px] truncate text-sm font-medium text-[#D7DADE]">{barbershopName}</p>
 
         <div className="mt-6 rounded-xl border border-white/10 bg-[#15171A] px-4 py-2 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+          <Detail icon={UserRound} value={staffName} />
           <Detail icon={Scissors} value={serviceName} />
           <Detail icon={CalendarDays} value={formatDate(date)} />
           <div className="flex items-center justify-between gap-4 border-t border-white/[0.06] py-3">

@@ -61,5 +61,10 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  await adminClient.from('staff_members').update({
+    name: parsed.data.barber_name,
+    whatsapp: parsed.data.whatsapp,
+  }).eq('barber_id', data.id).eq('is_owner', true)
+
   return NextResponse.json({ barber: data })
 }

@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState, type ChangeEvent } from 'react'
+import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Camera, Copy, Link2, Loader2, LogOut, Phone, Share2, Store, UserRound } from 'lucide-react'
+import { Camera, ChevronRight, Copy, Link2, Loader2, LogOut, Phone, Share2, Store, UserRound, UsersRound } from 'lucide-react'
 import { Header } from '@/components/dashboard/Header'
 import { PageLoading } from '@/components/shared/LoadingSpinner'
 import { Button } from '@/components/ui/button'
@@ -119,6 +120,12 @@ export default function PerfilPage() {
             <button type="button" onClick={copyLink} aria-label="Copiar link" className="grid h-8 w-8 place-items-center rounded border border-white/10 text-[#A2A6AD]"><Copy className="h-3.5 w-3.5" /></button>
             <button type="button" onClick={shareLink} aria-label="Compartilhar link" className="grid h-8 w-8 place-items-center rounded border border-white/10 text-[#A2A6AD]"><Share2 className="h-3.5 w-3.5" /></button>
           </div>
+
+          <Link href="/equipe" className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#111315] p-3 transition hover:border-[#F5C400]/35">
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#F5C400]/10 text-[#F5C400]"><UsersRound className="h-5 w-5" /></span>
+            <span className="min-w-0 flex-1"><strong className="block text-xs font-medium text-white">Equipe da barbearia</strong><span className="text-[10px] text-[#858A93]">Adicione e gerencie seus barbeiros</span></span>
+            <ChevronRight className="h-4 w-4 text-[#858A93]" />
+          </Link>
 
           <Button type="submit" className="gold-action w-full" disabled={saving || uploadingLogo}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar alterações'}</Button>
           <button type="button" onClick={signOut} className="mx-auto flex items-center gap-2 pt-1 text-xs text-[#EF4444]"><LogOut className="h-4 w-4" /> Sair da conta</button>

@@ -1,6 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+
+let serviceClient: SupabaseClient | null = null
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -28,9 +30,11 @@ export async function createClient() {
 }
 
 export function createServiceClient() {
-  return createSupabaseClient(
+  if (serviceClient) return serviceClient
+  serviceClient = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   )
+  return serviceClient
 }

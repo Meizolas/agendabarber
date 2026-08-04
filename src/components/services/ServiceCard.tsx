@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import type { Service } from '@/types'
 import { formatDuration, formatPrice } from '@/lib/utils/format'
 import { Clock3, ImageIcon, MoreVertical, Pencil, Scissors, Trash2 } from 'lucide-react'
@@ -15,7 +16,7 @@ export function ServiceCard({ service, onEdit, onDelete, onToggle }: ServiceCard
   return (
     <article className="dashboard-card flex min-h-[86px] items-center gap-3 p-2.5">
       {service.image_url ? (
-        <img src={service.image_url} alt={service.name} className="h-[68px] w-[68px] shrink-0 rounded-md object-cover" />
+        <Image src={service.image_url} alt={service.name} width={136} height={136} sizes="68px" className="h-[68px] w-[68px] shrink-0 rounded-md object-cover" />
       ) : (
         <div className="grid h-[68px] w-[68px] shrink-0 place-items-center rounded-md border border-white/10 bg-[#101214] text-[#F5C400]">
           <div className="grid place-items-center gap-1"><Scissors className="h-5 w-5" /><ImageIcon className="h-3 w-3 text-[#737881]" /></div>

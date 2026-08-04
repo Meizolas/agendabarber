@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import type { Service } from '@/types'
 import { formatDuration, formatPrice } from '@/lib/utils/format'
 import { Check, Clock3, Scissors } from 'lucide-react'
@@ -21,7 +22,7 @@ export function ServiceSelector({ services, selectedId, onSelect }: ServiceSelec
             className={`flex w-full items-stretch overflow-hidden rounded-lg border text-left transition ${selected ? 'border-[#F5C400] bg-[#191A1D] shadow-[0_0_0_1px_rgba(245,196,0,0.12)]' : 'border-white/10 bg-[#17191C] hover:border-white/20'}`}
           >
             {service.image_url ? (
-              <img src={service.image_url} alt={service.name} className="h-[86px] w-[88px] shrink-0 object-cover" />
+              <Image src={service.image_url} alt={service.name} width={176} height={172} sizes="88px" className="h-[86px] w-[88px] shrink-0 object-cover" />
             ) : (
               <span className="grid h-[86px] w-[88px] shrink-0 place-items-center bg-[#101214] text-[#F5C400]"><Scissors className="h-7 w-7" /></span>
             )}

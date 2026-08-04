@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     let query = adminClient
       .from('appointments')
-      .select('*, service:services(*)')
+      .select('*, service:services(*), staff_member:staff_members(*)')
       .eq('barber_id', barber.id)
       .order('appointment_date', { ascending: true })
       .order('appointment_time', { ascending: true })
@@ -119,9 +119,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Servico nao encontrado' }, { status: 404 })
     }
 
+    const { data: staffMember } = await supabase
+      .from('staff_members')
+      .select('id, name, whatsapp')
+      .eq('id', data.staff_member_id)
+      .eq('barber_id', data.barber_id)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (!staffMember) return NextResponse.json({ error: 'Profissional indisponível.' }, { status: 404 })
+
     const { data: appointment, error } = await supabase
       .rpc('create_public_appointment', {
         p_barber_id: data.barber_id,
+        p_staff_member_id: data.staff_member_id,
         p_service_id: data.service_id,
         p_client_name: data.client_name,
         p_client_whatsapp: data.client_whatsapp,
@@ -139,6 +149,7 @@ export async function POST(request: NextRequest) {
         BLOCKED_TIME: { message: 'Este horario esta bloqueado.', status: 409 },
         PAST_APPOINTMENT: { message: 'Escolha uma data e horario futuros.', status: 400 },
         INVALID_SERVICE: { message: 'Servico indisponivel.', status: 400 },
+        INVALID_STAFF_MEMBER: { message: 'Profissional indisponível.', status: 400 },
       }
       const known = Object.entries(knownErrors).find(([code]) => error.message.includes(code))?.[1]
       return NextResponse.json(
@@ -159,8 +170,8 @@ export async function POST(request: NextRequest) {
         appointmentId: createdAppointment.id,
         clientName: data.client_name,
         clientWhatsapp: data.client_whatsapp,
-        barberWhatsapp: barber.whatsapp,
-        barberName: barber.barber_name,
+        barberWhatsapp: staffMember.whatsapp || barber.whatsapp,
+        barberName: staffMember.name,
         barbershopName: barber.barbershop_name,
         serviceName: service.name,
         servicePrice: Number(service.price),

@@ -1,0 +1,14 @@
+begin;
+drop trigger if exists barbers_create_owner_staff on public.barbers;
+drop function if exists public.agendbarber_create_owner_staff();
+drop trigger if exists subscriptions_validate_plan_capacity on public.subscriptions;
+drop function if exists public.agendbarber_validate_plan_capacity();
+drop function if exists public.create_public_appointment(uuid, uuid, uuid, text, text, date, time, text);
+drop trigger if exists staff_members_enforce_limit on public.staff_members;
+drop function if exists public.agendbarber_enforce_staff_limit();
+alter table public.appointments drop constraint if exists appointments_staff_member_id_fkey;
+alter table public.appointments drop column if exists staff_member_id;
+drop table if exists public.staff_members;
+alter table public.billing_checkouts drop column if exists amount, drop column if exists plan_code;
+alter table public.subscriptions drop column if exists staff_limit, drop column if exists plan_code;
+commit;

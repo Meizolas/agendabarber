@@ -69,7 +69,18 @@ export async function POST(request: NextRequest) {
     console.error('[Billing webhook] Event registration failed:', registerError?.code)
     return NextResponse.json({ error: 'Falha ao registrar evento.' }, { status: 500 })
   }
-  const registration = registered as { event_id: string }
+  const registration = registered as { event_id: string; was_inserted: boolean }
+
+  // Um evento que chegou antes de seus dados de correlacao pode ter sido
+  // marcado como ignored. Quando o Asaas o reenviar, permitimos uma nova
+  // tentativa; claim_billing_event continua garantindo processamento unico.
+  if (!registration.was_inserted) {
+    await admin
+      .from('billing_events')
+      .update({ processing_status: 'pending', processed_at: null })
+      .eq('id', registration.event_id)
+      .eq('processing_status', 'ignored')
+  }
 
   const { data: claimed, error: claimError } = await admin
     .rpc('claim_billing_event', { p_event_id: registration.event_id })

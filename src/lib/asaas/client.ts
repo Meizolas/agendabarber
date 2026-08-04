@@ -42,9 +42,8 @@ interface AsaasErrorPayload {
 export function getAsaasConfig() {
   const apiKey = process.env.ASAAS_API_KEY?.trim()
   const baseUrl = normalizeAsaasBaseUrl(process.env.ASAAS_API_URL)
-  const monthlyPrice = Number(process.env.ASAAS_MONTHLY_PRICE)
 
-  if (!apiKey || !baseUrl || !Number.isFinite(monthlyPrice) || monthlyPrice <= 0) {
+  if (!apiKey || !baseUrl) {
     throw new Error('ASAAS_NOT_CONFIGURED')
   }
 
@@ -53,7 +52,6 @@ export function getAsaasConfig() {
   return {
     apiKey,
     baseUrl,
-    monthlyPrice: Math.round(monthlyPrice * 100) / 100,
   }
 }
 
@@ -68,6 +66,10 @@ export async function createRecurringCheckout(input: {
   externalReference: string
   appUrl: string
   nextDueDate: string
+  planName: string
+  planCode: string
+  price: number
+  staffLimit: number
 }) {
   const config = getAsaasConfig()
   const response = await fetch(`${config.baseUrl}/checkouts`, {
@@ -89,11 +91,11 @@ export async function createRecurringCheckout(input: {
         expiredUrl: `${input.appUrl}/assinatura/retorno?status=expirado`,
       },
       items: [{
-        externalReference: 'agendbarber-monthly',
-        name: 'Mensalidade AgendBarber',
-        description: 'Acesso mensal ao sistema AgendBarber',
+        externalReference: `agendbarber-${input.planCode}`,
+        name: `AgendBarber ${input.planName}`,
+        description: `Plano mensal para ate ${input.staffLimit} ${input.staffLimit === 1 ? 'barbeiro' : 'barbeiros'}`,
         quantity: 1,
-        value: config.monthlyPrice,
+        value: input.price,
       }],
       subscription: {
         cycle: 'MONTHLY',
@@ -124,4 +126,58 @@ export async function createRecurringCheckout(input: {
     link: payload.link || checkoutLink(config.baseUrl, payload.id),
     status: payload.status || 'ACTIVE',
   } satisfies AsaasCheckout
+}
+
+export async function updateRecurringSubscription(input: {
+  subscriptionId: string
+  externalReference: string
+  planName: string
+  price: number
+}) {
+  const config = getAsaasConfig()
+  const response = await fetch(`${config.baseUrl}/subscriptions/${encodeURIComponent(input.subscriptionId)}`, {
+    method: 'PUT',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      access_token: config.apiKey,
+      'user-agent': 'AgendBarber/1.0 (Next.js; server)',
+    },
+    body: JSON.stringify({
+      value: input.price,
+      description: `AgendBarber ${input.planName}`,
+      externalReference: input.externalReference,
+      updatePendingPayments: false,
+    }),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+  })
+
+  const payload = await response.json().catch(() => ({})) as AsaasErrorPayload
+  if (!response.ok) {
+    const firstError = payload.errors?.[0]
+    throw new AsaasApiError(
+      firstError?.description || 'O Asaas recusou a alteracao do plano.',
+      response.status,
+      firstError?.code,
+    )
+  }
+}
+
+export async function cancelCheckout(checkoutId: string) {
+  const config = getAsaasConfig()
+  const response = await fetch(`${config.baseUrl}/checkouts/${encodeURIComponent(checkoutId)}/cancel`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      access_token: config.apiKey,
+      'user-agent': 'AgendBarber/1.0 (Next.js; server)',
+    },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+  })
+  if (!response.ok && response.status !== 404) {
+    throw new AsaasApiError('Nao foi possivel substituir o checkout anterior.', response.status)
+  }
 }

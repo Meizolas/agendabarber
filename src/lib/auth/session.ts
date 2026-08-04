@@ -21,6 +21,10 @@ interface StoredUser {
   auth_source: AuthUser['authSource']
 }
 
+type StoredSessionWithUser = {
+  user: StoredUser | StoredUser[] | null
+}
+
 export function hashSessionToken(token: string) {
   return createHash('sha256').update(token).digest('hex')
 }
@@ -31,23 +35,16 @@ export async function findLocalUserBySessionToken(token?: string | null): Promis
   const admin = createServiceClient()
   const { data: session, error: sessionError } = await admin
     .from('sessions')
-    .select('user_id')
+    .select('user:users!inner(id, email, account_status, auth_source)')
     .eq('token_hash', hashSessionToken(token))
     .is('revoked_at', null)
     .gt('expires_at', new Date().toISOString())
     .maybeSingle()
 
   if (sessionError || !session) return null
-
-  const { data: user, error: userError } = await admin
-    .from('users')
-    .select('id, email, account_status, auth_source')
-    .eq('id', session.user_id)
-    .maybeSingle()
-
-  if (userError || !user) return null
-
-  const storedUser = user as StoredUser
+  const relation = (session as unknown as StoredSessionWithUser).user
+  const storedUser = (Array.isArray(relation) ? relation[0] : relation) ?? null
+  if (!storedUser) return null
   if (storedUser.account_status === 'disabled') return null
 
   return {

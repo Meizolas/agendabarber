@@ -1,10 +1,14 @@
 import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import { createRecurringCheckout, getAsaasConfig } from '@/lib/asaas/client'
+import { z } from 'zod'
+import { cancelCheckout, createRecurringCheckout, getAsaasConfig, updateRecurringSubscription } from '@/lib/asaas/client'
 import { getCurrentUser } from '@/lib/auth/session'
 import { enforceRateLimit, requestFingerprint } from '@/lib/security/request'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getBillingAccessByBarberId } from '@/lib/billing/access'
+import { getBillingPlan } from '@/lib/billing/plans'
+
+const checkoutSchema = z.object({ planCode: z.enum(['solo', 'team', 'studio']) })
 
 function dateInSaoPaulo() {
   return new Intl.DateTimeFormat('en-CA', {
@@ -37,12 +41,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'URL publica do app nao configurada.' }, { status: 503 })
   }
 
-  let monthlyPrice: number
   try {
-    monthlyPrice = getAsaasConfig().monthlyPrice
+    getAsaasConfig()
   } catch {
     return NextResponse.json({ error: 'Cobranca ainda nao configurada.' }, { status: 503 })
   }
+
+  const parsed = checkoutSchema.safeParse(await request.json().catch(() => null))
+  const plan = parsed.success ? getBillingPlan(parsed.data.planCode) : null
+  if (!plan) return NextResponse.json({ error: 'Selecione um plano valido.' }, { status: 400 })
 
   const admin = createServiceClient()
   try {
@@ -71,13 +78,47 @@ export async function POST(request: NextRequest) {
 
   const { data: subscription } = await admin
     .from('subscriptions')
-    .select('id, status')
+    .select('id, status, plan_code, provider_subscription_id')
     .eq('barber_id', barber.id)
     .maybeSingle()
 
   const billingAccess = await getBillingAccessByBarberId(barber.id)
+  const { count: activeStaff } = await admin
+    .from('staff_members')
+    .select('id', { count: 'exact', head: true })
+    .eq('barber_id', barber.id)
+    .eq('is_active', true)
+
+  if ((activeStaff ?? 1) > plan.staffLimit) {
+    return NextResponse.json(
+      { error: `Este plano permite ate ${plan.staffLimit} barbeiro${plan.staffLimit === 1 ? '' : 's'}. Desative profissionais antes de trocar.` },
+      { status: 409 },
+    )
+  }
+
   if (billingAccess.reason === 'active_subscription') {
-    return NextResponse.json({ status: 'active' })
+    if (subscription?.plan_code === plan.code) return NextResponse.json({ status: 'active' })
+    if (!subscription?.provider_subscription_id) {
+      return NextResponse.json({ error: 'Assinatura ainda esta sendo conciliada. Tente novamente em instantes.' }, { status: 409 })
+    }
+
+    try {
+      await updateRecurringSubscription({
+        subscriptionId: subscription.provider_subscription_id,
+        externalReference: `subscription:${subscription.id}`,
+        planName: plan.name,
+        price: plan.price,
+      })
+      const { error } = await admin.from('subscriptions').update({
+        plan_code: plan.code,
+        staff_limit: plan.staffLimit,
+        amount: plan.price,
+      }).eq('id', subscription.id)
+      if (error) throw error
+      return NextResponse.json({ status: 'plan_updated' })
+    } catch {
+      return NextResponse.json({ error: 'Nao foi possivel alterar o plano no Asaas.' }, { status: 502 })
+    }
   }
 
   const now = new Date()
@@ -90,26 +131,31 @@ export async function POST(request: NextRequest) {
 
   const { data: openCheckout } = await admin
     .from('billing_checkouts')
-    .select('checkout_url, status, expires_at')
+    .select('id, provider_checkout_id, checkout_url, status, expires_at, plan_code')
     .eq('barber_id', barber.id)
     .in('status', ['creating', 'active'])
     .maybeSingle()
 
-  if (openCheckout?.status === 'active' && openCheckout.checkout_url) {
+  if (openCheckout?.status === 'active' && openCheckout.checkout_url && openCheckout.plan_code === plan.code) {
     return NextResponse.json({ checkoutUrl: openCheckout.checkout_url, reused: true })
   }
   if (openCheckout) {
-    return NextResponse.json(
-      { error: 'Seu checkout ja esta sendo preparado. Tente novamente em instantes.' },
-      { status: 409 },
-    )
+    if (openCheckout.status === 'creating') {
+      return NextResponse.json({ error: 'Seu checkout ja esta sendo preparado. Tente novamente em instantes.' }, { status: 409 })
+    }
+    try {
+      if (openCheckout.provider_checkout_id) await cancelCheckout(openCheckout.provider_checkout_id)
+      await admin.from('billing_checkouts').update({ status: 'canceled' }).eq('id', openCheckout.id)
+    } catch {
+      return NextResponse.json({ error: 'Nao foi possivel trocar o checkout anterior agora.' }, { status: 502 })
+    }
   }
 
   let subscriptionId = subscription?.id as string | undefined
   if (!subscriptionId) {
     const { data: createdSubscription, error: subscriptionError } = await admin
       .from('subscriptions')
-      .insert({ barber_id: barber.id, amount: monthlyPrice })
+      .insert({ barber_id: barber.id, amount: plan.price, plan_code: plan.code, staff_limit: plan.staffLimit })
       .select('id')
       .single()
 
@@ -118,7 +164,7 @@ export async function POST(request: NextRequest) {
     }
     subscriptionId = createdSubscription.id
   } else {
-    await admin.from('subscriptions').update({ amount: monthlyPrice }).eq('id', subscriptionId)
+    await admin.from('subscriptions').update({ amount: plan.price, plan_code: plan.code, staff_limit: plan.staffLimit }).eq('id', subscriptionId)
   }
 
   const checkoutId = randomUUID()
@@ -129,6 +175,8 @@ export async function POST(request: NextRequest) {
     barber_id: barber.id,
     subscription_id: subscriptionId,
     external_reference: externalReference,
+    plan_code: plan.code,
+    amount: plan.price,
     expires_at: expiresAt.toISOString(),
   })
 
@@ -144,6 +192,10 @@ export async function POST(request: NextRequest) {
       externalReference,
       appUrl,
       nextDueDate: dateInSaoPaulo(),
+      planName: plan.name,
+      planCode: plan.code,
+      price: plan.price,
+      staffLimit: plan.staffLimit,
     })
 
     const { error: updateError } = await admin

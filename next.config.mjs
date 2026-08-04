@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  compress: true,
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'framer-motion'],
+  },
   async headers() {
     return [{
       source: '/(.*)',
@@ -13,6 +17,8 @@ const nextConfig = {
     }]
   },
   images: {
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 86400,
     remotePatterns: [
       {
         protocol: 'https',

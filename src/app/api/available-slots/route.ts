@@ -12,12 +12,13 @@ export async function GET(request: NextRequest) {
   const barberId = searchParams.get('barber_id')
   const date = searchParams.get('date')       // "YYYY-MM-DD"
   const serviceId = searchParams.get('service_id')
+  const staffMemberId = searchParams.get('staff_member_id')
 
-  if (!barberId || !date || !serviceId) {
-    return NextResponse.json({ error: 'Parâmetros obrigatórios: barber_id, date, service_id' }, { status: 400 })
+  if (!barberId || !date || !serviceId || !staffMemberId) {
+    return NextResponse.json({ error: 'Parâmetros obrigatórios: barber_id, staff_member_id, date, service_id' }, { status: 400 })
   }
 
-  if (!/^[0-9a-f-]{36}$/i.test(barberId) || !/^[0-9a-f-]{36}$/i.test(serviceId) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!/^[0-9a-f-]{36}$/i.test(barberId) || !/^[0-9a-f-]{36}$/i.test(staffMemberId) || !/^[0-9a-f-]{36}$/i.test(serviceId) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: 'Parametros invalidos' }, { status: 400 })
   }
 
@@ -31,6 +32,9 @@ export async function GET(request: NextRequest) {
       )
     }
     const dayOfWeek = getDay(new Date(date + 'T12:00:00'))
+
+    const { data: staffMember } = await supabase.from('staff_members').select('id').eq('id', staffMemberId).eq('barber_id', barberId).eq('is_active', true).maybeSingle()
+    if (!staffMember) return NextResponse.json({ error: 'Profissional indisponível.' }, { status: 404 })
 
     // Buscar regra de disponibilidade para o dia da semana
     const { data: rule } = await supabase
@@ -63,6 +67,7 @@ export async function GET(request: NextRequest) {
       .from('appointments')
       .select('appointment_time, service:services(duration_minutes)')
       .eq('barber_id', barberId)
+      .eq('staff_member_id', staffMemberId)
       .eq('appointment_date', date)
       .eq('status', 'confirmed')
 
@@ -102,6 +107,14 @@ export async function GET(request: NextRequest) {
       occupiedIntervals,
       blockedTimes,
     )
+    let unavailableSlots = generateTimeSlots(
+      rule.start_time.substring(0, 5),
+      rule.end_time.substring(0, 5),
+      rule.interval_minutes,
+      service.duration_minutes,
+      [],
+      blockedTimes,
+    ).filter((slot) => !slots.includes(slot))
 
     const nowInSaoPaulo = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -112,10 +125,16 @@ export async function GET(request: NextRequest) {
     }, {})
     const today = `${nowInSaoPaulo.year}-${nowInSaoPaulo.month}-${nowInSaoPaulo.day}`
     const currentTime = `${nowInSaoPaulo.hour}:${nowInSaoPaulo.minute}`
-    if (date < today) slots = []
-    if (date === today) slots = slots.filter((slot) => slot > currentTime)
+    if (date < today) {
+      slots = []
+      unavailableSlots = []
+    }
+    if (date === today) {
+      slots = slots.filter((slot) => slot > currentTime)
+      unavailableSlots = unavailableSlots.filter((slot) => slot > currentTime)
+    }
 
-    return NextResponse.json({ slots })
+    return NextResponse.json({ slots, unavailableSlots })
   } catch (err) {
     console.error('[Available Slots] Error:', err)
     return NextResponse.json({ error: 'Erro ao buscar horários' }, { status: 500 })
