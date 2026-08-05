@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { CalendarClock, ChevronRight, Share2 } from 'lucide-react'
+import { CalendarClock, ChevronRight, CircleDollarSign, Share2 } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 import { Header } from '@/components/dashboard/Header'
@@ -24,24 +24,29 @@ export default async function DashboardPage() {
 
   const today = getSaoPauloDate()
   const weekEnd = addCalendarDays(today, 6)
-  const { data: upcomingAppointments } = await admin
-    .from('appointments')
-    .select('*, service:services(*)')
-    .eq('barber_id', barber.id)
-    .eq('status', 'confirmed')
-    .gte('appointment_date', today)
-    .lte('appointment_date', weekEnd)
-    .order('appointment_date', { ascending: true })
-    .order('appointment_time', { ascending: true })
-
-  const { count: completedToday } = await admin.from('appointments').select('*', { count: 'exact', head: true })
-    .eq('barber_id', barber.id).eq('appointment_date', today).eq('status', 'completed')
-  const { count: totalMonth } = await admin.from('appointments').select('*', { count: 'exact', head: true })
-    .eq('barber_id', barber.id).gte('appointment_date', `${today.slice(0, 7)}-01`).neq('status', 'cancelled')
+  const [{ data: upcomingAppointments }, { count: completedToday }, { count: totalMonth }] = await Promise.all([
+    admin
+      .from('appointments')
+      .select('*, service:services(*)')
+      .eq('barber_id', barber.id)
+      .eq('status', 'confirmed')
+      .gte('appointment_date', today)
+      .lte('appointment_date', weekEnd)
+      .order('appointment_date', { ascending: true })
+      .order('appointment_time', { ascending: true }),
+    admin.from('appointments').select('*', { count: 'exact', head: true })
+      .eq('barber_id', barber.id).eq('appointment_date', today).eq('status', 'completed'),
+    admin.from('appointments').select('*', { count: 'exact', head: true })
+      .eq('barber_id', barber.id).gte('appointment_date', `${today.slice(0, 7)}-01`).neq('status', 'cancelled'),
+  ])
 
   const appointments = (upcomingAppointments ?? []) as Appointment[]
   const todayAppointments = appointments.filter((item) => item.appointment_date === today)
   const next = appointments[0]
+  const nextPaymentPending = next?.payment_status !== 'paid'
+  const nextPaymentLabel = nextPaymentPending
+    ? next?.payment_method === 'pix' ? 'Pix a confirmar' : 'Pagar na barbearia'
+    : 'Pagamento confirmado'
   const firstName = barber.barber_name.split(' ')[0]
   const dateLabel = format(parseISO(today), "EEEE, dd 'de' MMMM", { locale: ptBR })
   const appUrl = getPublicAppUrl()
@@ -66,6 +71,9 @@ export default async function DashboardPage() {
               <div className="min-w-[58px] border-r border-white/10 pr-3 text-center text-[20px] font-semibold text-[#F5C400]">{formatTime(next.appointment_time)}</div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-white">{next.client_name}</p>
+                <p className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-medium ${nextPaymentPending ? 'bg-[#F5C400]/15 text-[#F5C400]' : 'bg-[#22C55E]/15 text-[#65D787]'}`}>
+                  <CircleDollarSign className="h-3 w-3" /> {nextPaymentLabel}
+                </p>
                 <p className="truncate text-[11px] text-[#858A93]">{next.service?.name ?? 'Serviço'}</p>
               </div>
               <span className="rounded-full bg-[#22C55E]/15 px-2 py-1 text-[9px] font-medium text-[#65D787]">Confirmado</span>

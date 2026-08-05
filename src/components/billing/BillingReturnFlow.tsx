@@ -35,8 +35,7 @@ export function BillingReturnFlow({ status }: { status: ReturnStatus }) {
         if (response.ok && result?.active) {
           setState('activated')
           await new Promise((resolve) => window.setTimeout(resolve, 700))
-          router.replace('/dashboard')
-          router.refresh()
+          window.location.replace('/dashboard')
           return
         }
         if (response.status === 401) {

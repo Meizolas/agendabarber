@@ -17,6 +17,13 @@ export const profileSchema = z.object({
       'Use apenas letras minúsculas, números e hífens',
     ),
   logo_url: z.string().url().nullable().optional(),
+  pix_key: z
+    .string()
+    .max(140, 'Chave Pix deve ter no maximo 140 caracteres')
+    .transform((value) => value.trim())
+    .optional()
+    .nullable(),
+  pix_key_type: z.enum(['cpf', 'cnpj', 'email', 'phone', 'random']).default('phone'),
 })
 
 export type ProfileInput = z.infer<typeof profileSchema>

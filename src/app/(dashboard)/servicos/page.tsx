@@ -43,14 +43,14 @@ export default function ServicosPage() {
       return
     }
 
-    const profileResponse = await fetch('/api/profile')
-    if (!profileResponse.ok) {
+    const servicesResponse = await fetch('/api/services')
+    if (!servicesResponse.ok) {
       setLoading(false)
       return
     }
 
-    const { barber: barberData } = await profileResponse.json()
-
+    const servicesResult = await servicesResponse.json()
+    const barberData = servicesResult.barber ?? null
     setBarber(barberData)
 
     if (barberData) {
@@ -58,10 +58,7 @@ export default function ServicosPage() {
       const cachedServices = readServicesCache(cacheKey)
       if (cachedServices) setServices(cachedServices)
 
-      const servicesResponse = await fetch('/api/services')
-      const servicesResult = await servicesResponse.json()
-
-      const nextServices = servicesResponse.ok ? servicesResult.services ?? [] : []
+      const nextServices = servicesResult.services ?? []
       setServices(nextServices)
       writeServicesCache(cacheKey, nextServices)
     }

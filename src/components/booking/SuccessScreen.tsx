@@ -1,6 +1,11 @@
-import { CalendarDays, Check, Clock3, MessageCircle, Scissors, Tag, UserRound } from 'lucide-react'
+'use client'
+
+import { useEffect, useState } from 'react'
+import QRCode from 'qrcode'
+import { CalendarDays, Check, Clock3, Copy, MessageCircle, QrCode, Scissors, Tag, UserRound } from 'lucide-react'
 import { formatDate, formatDuration, formatPrice, formatTime, sanitizeWhatsApp } from '@/lib/utils/format'
 import { Button } from '@/components/ui/button'
+import type { AppointmentPaymentMethod } from '@/types'
 
 interface SuccessScreenProps {
   clientName: string
@@ -12,6 +17,8 @@ interface SuccessScreenProps {
   serviceDuration: number
   date: string
   time: string
+  paymentMethod?: AppointmentPaymentMethod
+  pixPayload?: string
   onNewBooking: () => void
 }
 
@@ -30,8 +37,11 @@ export function SuccessScreen({
   serviceDuration,
   date,
   time,
+  paymentMethod = 'at_barbershop',
+  pixPayload,
   onNewBooking,
 }: SuccessScreenProps) {
+  const [qrCodeUrl, setQrCodeUrl] = useState('')
   const startsAt = new Date(`${date}T${formatTime(time)}:00`)
   const endsAt = new Date(startsAt.getTime() + serviceDuration * 60_000)
   const calendarFile = [
@@ -47,8 +57,25 @@ export function SuccessScreen({
   ].join('\r\n')
   const calendarHref = `data:text/calendar;charset=utf-8,${encodeURIComponent(calendarFile)}`
   const whatsappHref = barbershopWhatsApp
-    ? `https://wa.me/${sanitizeWhatsApp(barbershopWhatsApp)}?text=${encodeURIComponent(`Olá! Gostaria de falar sobre meu agendamento de ${serviceName}.`)}`
+    ? `https://wa.me/${sanitizeWhatsApp(barbershopWhatsApp)}?text=${encodeURIComponent(`Ola! Gostaria de falar sobre meu agendamento de ${serviceName}.`)}`
     : null
+
+  useEffect(() => {
+    let active = true
+    if (!pixPayload) {
+      setQrCodeUrl('')
+      return
+    }
+    QRCode.toDataURL(pixPayload, { width: 220, margin: 1, color: { dark: '#050607', light: '#FFFFFF' } })
+      .then((url) => { if (active) setQrCodeUrl(url) })
+      .catch(() => { if (active) setQrCodeUrl('') })
+    return () => { active = false }
+  }, [pixPayload])
+
+  const copyPix = async () => {
+    if (!pixPayload) return
+    await navigator.clipboard.writeText(pixPayload)
+  }
 
   return (
     <div className="auth-surface relative min-h-[calc(100dvh-3rem)] overflow-hidden rounded-[30px] border border-white/[0.08] bg-[#08090B] px-5 pb-7 pt-8 text-center shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
@@ -79,13 +106,28 @@ export function SuccessScreen({
           <Detail icon={Tag} value={formatPrice(servicePrice)} />
         </div>
 
-        <p className="mt-4 flex items-center justify-center gap-2 text-[11px] text-[#9A9EA6]">
-          <MessageCircle className="h-4 w-4 text-[#22C55E]" />
-          Enviamos a confirmação para seu WhatsApp
-        </p>
+        {paymentMethod === 'pix' && pixPayload ? (
+          <div className="mt-4 rounded-xl border border-[#F5C400]/35 bg-[#111315] p-4 text-left">
+            <div className="mb-3 flex items-start gap-2">
+              <QrCode className="mt-0.5 h-5 w-5 shrink-0 text-[#F5C400]" />
+              <div>
+                <p className="text-sm font-semibold text-white">Pagamento via Pix</p>
+                <p className="mt-1 text-[10px] leading-4 text-[#E8D281]">A barbearia confirma o pagamento manualmente depois de verificar o recebimento.</p>
+              </div>
+            </div>
+            {qrCodeUrl && <img src={qrCodeUrl} alt="QR Code Pix" className="mx-auto h-44 w-44 rounded-lg bg-white p-2" />}
+            <button type="button" onClick={copyPix} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[#F5C400] px-3 text-xs font-semibold text-[#F5C400]">
+              <Copy className="h-4 w-4" /> Copiar codigo Pix
+            </button>
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-[#F5C400]/25 bg-[#F5C400]/10 px-3 py-3 text-left text-[11px] leading-4 text-[#E8D281]">
+            Pagamento escolhido: na barbearia. O profissional confirmara o pagamento no painel apos receber.
+          </div>
+        )}
 
         <a href={calendarHref} download={`agendamento-${date}.ics`} className="gold-action mt-5 flex w-full items-center justify-center gap-2 text-sm">
-          <CalendarDays className="h-[18px] w-[18px]" /> Adicionar ao calendário
+          <CalendarDays className="h-[18px] w-[18px]" /> Adicionar ao calendario
         </a>
 
         {whatsappHref && (

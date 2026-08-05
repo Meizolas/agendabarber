@@ -83,8 +83,8 @@ function PlanCard({ plan, current, subscriptionActive, unavailable }: {
       <div className="ml-[96px] mt-1">
         <SubscriptionCheckoutButton
           planCode={plan.code}
-          disabled={unavailable}
-          label={current && subscriptionActive ? `Escolher ${plan.name}` : subscriptionActive ? `Trocar para ${plan.name}` : `Escolher ${plan.name}`}
+          disabled={unavailable || (current && subscriptionActive)}
+          label={current && subscriptionActive ? 'Plano atual' : subscriptionActive ? `Trocar para ${plan.name}` : `Escolher ${plan.name}`}
           featured={featured}
         />
         {unavailable && <p className="mt-1.5 text-center text-[8px] text-[#FCA5A5]">Desative profissionais para escolher este plano.</p>}

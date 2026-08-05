@@ -9,7 +9,7 @@ export function BillingReconciler({ enabled }: { enabled: boolean }) {
     const reconcile = async () => {
       const response = await fetch('/api/billing/reconcile', { method: 'POST' })
       const result = await response.json().catch(() => null)
-      if (!cancelled && response.ok && result?.active) window.location.reload()
+      if (!cancelled && response.ok && result?.active) window.location.replace('/dashboard')
     }
     void reconcile()
     return () => { cancelled = true }

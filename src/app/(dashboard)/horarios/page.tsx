@@ -42,7 +42,12 @@ export default function HorariosPage() {
       return
     }
 
-    const profileResponse = await fetch('/api/profile')
+    const [profileResponse, rulesResponse, blockedResponse] = await Promise.all([
+      fetch('/api/profile'),
+      fetch('/api/availability'),
+      fetch('/api/blocked-times'),
+    ])
+
     if (!profileResponse.ok) {
       setLoading(false)
       return
@@ -52,10 +57,6 @@ export default function HorariosPage() {
     setBarber(barberData)
 
     if (barberData) {
-      const [rulesResponse, blockedResponse] = await Promise.all([
-        fetch('/api/availability'),
-        fetch('/api/blocked-times'),
-      ])
       const rulesData = rulesResponse.ok ? (await rulesResponse.json()).rules : []
       const blockedData = blockedResponse.ok ? (await blockedResponse.json()).blocked : []
       setRules(rulesData ?? [])

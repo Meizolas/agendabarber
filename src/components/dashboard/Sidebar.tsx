@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 import { CalendarDays, Clock3, Home, SlidersHorizontal, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
@@ -15,7 +16,13 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const plansPage = pathname.startsWith('/assinatura')
+
+  useEffect(() => {
+    navItems.forEach((item) => router.prefetch(item.href))
+    router.prefetch('/assinatura')
+  }, [router])
 
   return (
     <nav className={cn(
@@ -30,6 +37,7 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
+            prefetch
             className={cn(
               'flex min-w-0 flex-col items-center gap-1 rounded-lg py-1.5 text-[10px] transition',
               active ? 'text-[#F5C400]' : 'text-[#858A93] hover:text-white',

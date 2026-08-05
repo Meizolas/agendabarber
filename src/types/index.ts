@@ -6,6 +6,8 @@ export interface Barber {
   whatsapp: string
   slug: string
   logo_url: string | null
+  pix_key?: string | null
+  pix_key_type?: 'cpf' | 'cnpj' | 'email' | 'phone' | 'random' | null
   created_at: string
   updated_at: string
 }
@@ -66,6 +68,9 @@ export interface Appointment {
   appointment_time: string
   notes: string | null
   status: 'confirmed' | 'cancelled' | 'completed'
+  payment_method?: 'pix' | 'at_barbershop'
+  payment_status?: 'pending_confirmation' | 'paid'
+  payment_confirmed_at?: string | null
   created_at: string
   updated_at: string
   service?: Service
@@ -85,6 +90,8 @@ export interface WhatsAppLog {
 }
 
 export type AppointmentStatus = 'confirmed' | 'cancelled' | 'completed'
+export type AppointmentPaymentMethod = 'pix' | 'at_barbershop'
+export type AppointmentPaymentStatus = 'pending_confirmation' | 'paid'
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
 export const DAY_NAMES: Record<DayOfWeek, string> = {

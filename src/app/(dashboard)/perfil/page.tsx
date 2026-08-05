@@ -4,7 +4,7 @@ import { useEffect, useState, type ChangeEvent } from 'react'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Camera, ChevronRight, Copy, Link2, Loader2, LogOut, Phone, Share2, Store, UserRound, UsersRound } from 'lucide-react'
+import { Camera, ChevronRight, Copy, KeyRound, Link2, Loader2, LogOut, MessageCircle, Phone, QrCode, Share2, Store, UserRound, UsersRound } from 'lucide-react'
 import { Header } from '@/components/dashboard/Header'
 import { PageLoading } from '@/components/shared/LoadingSpinner'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { profileSchema, type ProfileInput } from '@/lib/validations/profile'
 import { useAuth } from '@/hooks/useAuth'
 import type { Barber } from '@/types'
+import { getSupportWhatsAppUrl } from '@/lib/support'
 
 export default function PerfilPage() {
   const [barber, setBarber] = useState<Barber | null>(null)
@@ -42,6 +43,8 @@ export default function PerfilPage() {
             whatsapp: result.barber.whatsapp,
             slug: result.barber.slug,
             logo_url: result.barber.logo_url,
+            pix_key: result.barber.pix_key ?? '',
+            pix_key_type: result.barber.pix_key_type ?? 'phone',
           })
         }
       }
@@ -54,7 +57,7 @@ export default function PerfilPage() {
     setSaving(true)
     const response = await fetch('/api/profile', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, slug: data.slug.toLowerCase(), logo_url: logoUrl }),
+      body: JSON.stringify({ ...data, slug: data.slug.toLowerCase(), logo_url: logoUrl, pix_key: data.pix_key || null, pix_key_type: data.pix_key_type }),
     })
     const result = await response.json().catch(() => null)
     if (!response.ok) toast({ title: 'Erro ao salvar', description: result?.error ?? 'Não foi possível salvar seu perfil.', variant: 'destructive' })
@@ -115,6 +118,29 @@ export default function PerfilPage() {
           <ProfileField label="WhatsApp" icon={Phone} error={errors.whatsapp?.message}><Input className="dashboard-field pl-10" {...register('whatsapp')} /></ProfileField>
           <ProfileField label="Link público" icon={Link2} error={errors.slug?.message}><Input className="dashboard-field pl-10" {...register('slug')} /></ProfileField>
 
+          <div className="rounded-xl border border-[#F5C400]/25 bg-[#111315] p-3">
+            <div className="mb-2 flex items-start gap-2">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5C400]/10 text-[#F5C400]"><QrCode className="h-4 w-4" /></span>
+              <div>
+                <p className="text-xs font-semibold text-white">Pix da barbearia</p>
+                <p className="mt-0.5 text-[10px] leading-4 text-[#858A93]">O QR Code sera gerado por esta chave. A confirmacao do pagamento continua manual no painel.</p>
+              </div>
+            </div>
+            <div className="mb-2">
+              <label className="mb-1.5 block text-[10px] text-[#858A93]">Tipo da chave</label>
+              <select className="dashboard-field w-full px-3" {...register('pix_key_type')}>
+                <option value="phone">Telefone</option>
+                <option value="cpf">CPF</option>
+                <option value="cnpj">CNPJ</option>
+                <option value="email">E-mail</option>
+                <option value="random">Chave aleatoria</option>
+              </select>
+            </div>
+            <ProfileField label="Chave Pix" icon={KeyRound} error={errors.pix_key?.message}>
+              <Input className="dashboard-field pl-10" placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatoria" {...register('pix_key')} />
+            </ProfileField>
+          </div>
+
           <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#101214] p-2">
             <span className="min-w-0 flex-1 truncate px-1 text-[10px] text-[#858A93]">/agendar/<span className="text-[#D7DADE]">{publicSlug}</span></span>
             <button type="button" onClick={copyLink} aria-label="Copiar link" className="grid h-8 w-8 place-items-center rounded border border-white/10 text-[#A2A6AD]"><Copy className="h-3.5 w-3.5" /></button>
@@ -128,6 +154,12 @@ export default function PerfilPage() {
           </Link>
 
           <Button type="submit" className="gold-action w-full" disabled={saving || uploadingLogo}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar alterações'}</Button>
+          <a href={getSupportWhatsAppUrl()} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl border border-[#22C55E]/25 bg-[#111315] p-3 transition hover:border-[#22C55E]/45">
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#22C55E]/10 text-[#22C55E]"><MessageCircle className="h-5 w-5" /></span>
+            <span className="min-w-0 flex-1"><strong className="block text-xs font-medium text-white">Falar com suporte</strong><span className="text-[10px] text-[#858A93]">Atendimento pelo WhatsApp</span></span>
+            <ChevronRight className="h-4 w-4 text-[#858A93]" />
+          </a>
+
           <button type="button" onClick={signOut} className="mx-auto flex items-center gap-2 pt-1 text-xs text-[#EF4444]"><LogOut className="h-4 w-4" /> Sair da conta</button>
         </form>
       </div>

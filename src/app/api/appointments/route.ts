@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 import { createAppointmentSchema } from '@/lib/validations/appointment'
-import { sendAppointmentNotifications } from '@/lib/whatsapp/evolution'
 import { enforceRateLimit, requestFingerprint } from '@/lib/security/request'
 import type { Appointment } from '@/types'
 import { getBillingAccessByBarberId } from '@/lib/billing/access'
@@ -91,12 +90,16 @@ export async function POST(request: NextRequest) {
 
     const { data: barber } = await supabase
       .from('barbers')
-      .select('id, barber_name, barbershop_name, whatsapp')
+      .select('id, barber_name, barbershop_name, whatsapp, pix_key, pix_key_type')
       .eq('id', data.barber_id)
       .single()
 
     if (!barber) {
       return NextResponse.json({ error: 'Barbeiro nao encontrado' }, { status: 404 })
+    }
+
+    if (data.payment_method === 'pix' && !barber.pix_key) {
+      return NextResponse.json({ error: 'Pagamento via Pix indisponivel para esta barbearia.' }, { status: 400 })
     }
 
     const billingAccess = await getBillingAccessByBarberId(barber.id)
@@ -138,6 +141,7 @@ export async function POST(request: NextRequest) {
         p_appointment_date: data.appointment_date,
         p_appointment_time: data.appointment_time,
         p_notes: data.notes ?? null,
+        p_payment_method: data.payment_method,
       })
       .single()
 
@@ -163,28 +167,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Agendamento nao retornado pelo banco.' }, { status: 500 })
     }
 
-    let notificationError: string | null = null
-
-    try {
-      await sendAppointmentNotifications({
-        appointmentId: createdAppointment.id,
-        clientName: data.client_name,
-        clientWhatsapp: data.client_whatsapp,
-        barberWhatsapp: staffMember.whatsapp || barber.whatsapp,
-        barberName: staffMember.name,
-        barbershopName: barber.barbershop_name,
-        serviceName: service.name,
-        servicePrice: Number(service.price),
-        appointmentDate: data.appointment_date,
-        appointmentTime: data.appointment_time,
-        notes: data.notes,
-      })
-    } catch (err) {
-      notificationError = err instanceof Error ? err.message : 'Erro ao enviar notificacoes'
-      console.error('[WhatsApp] Error:', err)
-    }
-
-    return NextResponse.json({ appointment: createdAppointment, notificationError }, { status: 201 })
+    return NextResponse.json({ appointment: createdAppointment }, { status: 201 })
   } catch (err) {
     console.error('[Appointments POST] Unexpected error:', err)
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })

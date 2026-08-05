@@ -1,6 +1,6 @@
 # AgendBarber
 
-Aplicativo de agendamento para barbearias feito com Next.js, Supabase, Tailwind CSS e Evolution API para notificacoes via WhatsApp.
+Aplicativo de agendamento para barbearias feito com Next.js, Supabase, Tailwind CSS e Asaas para assinatura recorrente.
 
 O projeto tem duas experiencias principais:
 
@@ -15,7 +15,6 @@ Antes de rodar o projeto, instale:
 - npm 10 ou superior
 - Conta/projeto no Supabase
 - Git, opcional, mas recomendado
-- Evolution API configurada, opcional para WhatsApp
 
 Para conferir se Node e npm estao instalados:
 
@@ -44,11 +43,6 @@ NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sua-chave-anon
 SUPABASE_SERVICE_ROLE_KEY=sua-chave-service-role
 
-# Evolution API / WhatsApp
-EVOLUTION_API_URL=https://sua-evolution-api.com
-EVOLUTION_API_KEY=sua-chave-evolution
-EVOLUTION_INSTANCE_NAME=nome-da-instancia
-
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
@@ -59,7 +53,6 @@ AUTH_EMAIL_FROM=AgendBarber <contato@seu-dominio.com>
 # Asaas (use a chave correspondente ao ambiente da URL)
 ASAAS_API_URL=https://api-sandbox.asaas.com/v3
 ASAAS_API_KEY=sua-chave-sandbox
-ASAAS_MONTHLY_PRICE=49.90
 ASAAS_WEBHOOK_TOKEN=gere-um-token-exclusivo-para-webhook
 ASAAS_WEBHOOK_EMAIL=financeiro@seu-dominio.com
 ```
@@ -69,6 +62,7 @@ Importante:
 - Nunca publique `.env.local`.
 - A chave `SUPABASE_SERVICE_ROLE_KEY` tem permissao alta no Supabase.
 - O `.gitignore` ja ignora arquivos `.env`, `.env.local` e `.env*.local`.
+- Os valores dos planos ficam no codigo em `src/lib/billing/plans.ts`, nao em variavel de ambiente.
 
 ## Configuracao do Supabase
 

@@ -10,11 +10,11 @@ export async function GET() {
   const adminClient = createServiceClient()
   const { data: barber } = await adminClient
     .from('barbers')
-    .select('id')
+    .select('*')
     .eq('user_id', user.id)
     .maybeSingle()
 
-  if (!barber) return NextResponse.json({ services: [] })
+  if (!barber) return NextResponse.json({ barber: null, services: [] })
 
   const { data, error } = await adminClient
     .from('services')
@@ -23,7 +23,7 @@ export async function GET() {
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ services: data ?? [] })
+  return NextResponse.json({ barber, services: data ?? [] })
 }
 
 export async function POST(request: NextRequest) {

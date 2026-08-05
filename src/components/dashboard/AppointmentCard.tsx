@@ -1,10 +1,12 @@
 import type { Appointment } from '@/types'
 import { formatPrice, formatTime, sanitizeWhatsApp } from '@/lib/utils/format'
-import { Check, MessageCircle, MoreVertical, X } from 'lucide-react'
+import { Check, CircleDollarSign, MessageCircle, MoreVertical, X } from 'lucide-react'
 
 interface AppointmentCardProps {
   appointment: Appointment
   onAction?: (id: string, status: 'cancelled' | 'completed') => void
+  onPaymentConfirm?: (id: string) => void
+  paymentLoading?: boolean
 }
 
 const statusStyle = {
@@ -13,9 +15,15 @@ const statusStyle = {
   cancelled: { label: 'Cancelado', border: 'border-l-[#EF4444]', badge: 'bg-[#EF4444]/15 text-[#FCA5A5]' },
 }
 
-export function AppointmentCard({ appointment, onAction }: AppointmentCardProps) {
+export function AppointmentCard({ appointment, onAction, onPaymentConfirm, paymentLoading }: AppointmentCardProps) {
   const style = statusStyle[appointment.status]
   const whatsapp = `https://wa.me/${sanitizeWhatsApp(appointment.client_whatsapp)}`
+  const paymentPending = appointment.payment_status !== 'paid'
+  const paymentLabel = appointment.payment_status === 'paid'
+    ? 'Pagamento confirmado'
+    : appointment.payment_method === 'pix'
+      ? 'Pix a confirmar'
+      : 'Pagar na barbearia'
 
   return (
     <article className={`dashboard-card flex min-h-[76px] overflow-visible border-l-2 ${style.border}`}>
@@ -29,6 +37,9 @@ export function AppointmentCard({ appointment, onAction }: AppointmentCardProps)
             <p className="mt-1 truncate text-[10px] text-[#A2A6AD]">{appointment.service?.name ?? 'Serviço'}</p>
             {appointment.staff_member?.name && <p className="mt-0.5 truncate text-[9px] text-[#F5C400]">com {appointment.staff_member.name}</p>}
             {appointment.service && <p className="mt-0.5 text-[10px] text-[#737881]">{formatPrice(appointment.service.price)}</p>}
+            <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[8px] font-medium ${paymentPending ? 'bg-[#F5C400]/15 text-[#F5C400]' : 'bg-[#22C55E]/15 text-[#65D787]'}`}>
+              <CircleDollarSign className="h-3 w-3" /> {paymentLabel}
+            </span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className={`rounded-full px-2 py-1 text-[8px] font-medium ${style.badge}`}>{style.label}</span>
@@ -44,6 +55,16 @@ export function AppointmentCard({ appointment, onAction }: AppointmentCardProps)
             )}
           </div>
         </div>
+        {paymentPending && onPaymentConfirm && appointment.status !== 'cancelled' && (
+          <button
+            type="button"
+            disabled={paymentLoading}
+            onClick={() => onPaymentConfirm(appointment.id)}
+            className="mt-2 inline-flex min-h-8 items-center justify-center rounded-md border border-[#F5C400]/60 px-2.5 text-[10px] font-semibold text-[#F5C400] transition hover:bg-[#F5C400]/10 disabled:cursor-wait disabled:opacity-60"
+          >
+            Confirmar pagamento
+          </button>
+        )}
       </div>
     </article>
   )

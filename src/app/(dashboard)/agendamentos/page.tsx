@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { addDays, format, parseISO, startOfWeek } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { CalendarCheck, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Appointment, Barber } from '@/types'
 import { Header } from '@/components/dashboard/Header'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
@@ -13,6 +13,7 @@ import { PageLoading } from '@/components/shared/LoadingSpinner'
 import { getSaoPauloDate } from '@/lib/utils/timezone'
 import { demoBarber, demoServices } from '@/lib/demo-data'
 import { DEMO_STORAGE_KEY } from '@/lib/demo-session'
+import { ManualAppointmentDialog } from '@/components/dashboard/ManualAppointmentDialog'
 
 export default function AgendamentosPage() {
   const [barber, setBarber] = useState<Barber | null>(null)
@@ -28,6 +29,8 @@ export default function AgendamentosPage() {
   const [demoMode, setDemoMode] = useState(false)
   const [actionDialog, setActionDialog] = useState<{ open: boolean; id: string | null; action: 'cancelled' | 'completed' | null }>({ open: false, id: null, action: null })
   const [actionLoading, setActionLoading] = useState(false)
+  const [paymentLoadingId, setPaymentLoadingId] = useState<string | null>(null)
+  const [manualAppointmentOpen, setManualAppointmentOpen] = useState(false)
   const { toast } = useToast()
 
   const loadData = useCallback(async () => {
@@ -100,6 +103,27 @@ export default function AgendamentosPage() {
     setActionLoading(false)
   }
 
+  const confirmPayment = async (id: string) => {
+    setPaymentLoadingId(id)
+    if (demoMode) {
+      setAppointments((current) => current.map((item) => item.id === id ? { ...item, payment_status: 'paid', payment_confirmed_at: new Date().toISOString() } : item))
+      setPaymentLoadingId(null)
+      return
+    }
+    const response = await fetch(`/api/appointments/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payment_status: 'paid' }),
+    })
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) toast({ title: 'Erro', description: payload?.error ?? 'Nao foi possivel confirmar o pagamento.', variant: 'destructive' })
+    else {
+      toast({ title: 'Pagamento confirmado' })
+      loadData()
+    }
+    setPaymentLoadingId(null)
+  }
+
   if (loading) return <PageLoading />
   const weekStart = startOfWeek(parseISO(selectedDate), { weekStartsOn: 0 })
   const weekDays = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))
@@ -112,9 +136,15 @@ export default function AgendamentosPage() {
     <>
       <Header barber={barber} title="Agendamentos" />
       <div className="flex-1 space-y-3 px-4 pb-5">
-        <div className="inline-flex rounded-md border border-white/10 bg-[#101214] p-0.5 text-[10px]">
-          <button type="button" aria-pressed={viewMode === 'day'} onClick={() => setViewMode('day')} className={`rounded px-4 py-1.5 ${viewMode === 'day' ? 'bg-[#F5C400] text-black' : 'text-[#858A93]'}`}>Dia</button>
-          <button type="button" aria-pressed={viewMode === 'week'} onClick={() => setViewMode('week')} className={`rounded px-4 py-1.5 ${viewMode === 'week' ? 'bg-[#F5C400] text-black' : 'text-[#858A93]'}`}>Semana</button>
+        <div className="flex items-center justify-between gap-3">
+          <div className="inline-flex rounded-md border border-white/10 bg-[#101214] p-0.5 text-[10px]">
+            <button type="button" aria-pressed={viewMode === 'day'} onClick={() => setViewMode('day')} className={`rounded px-4 py-1.5 ${viewMode === 'day' ? 'bg-[#F5C400] text-black' : 'text-[#858A93]'}`}>Dia</button>
+            <button type="button" aria-pressed={viewMode === 'week'} onClick={() => setViewMode('week')} className={`rounded px-4 py-1.5 ${viewMode === 'week' ? 'bg-[#F5C400] text-black' : 'text-[#858A93]'}`}>Semana</button>
+          </div>
+          <button type="button" onClick={() => setManualAppointmentOpen(true)} className="flex h-9 items-center gap-1.5 rounded-lg bg-[#F5C400] px-3 text-[10px] font-semibold text-black shadow-[0_8px_20px_rgba(245,196,0,0.16)]">
+            <CalendarPlus className="h-4 w-4" />
+            Novo
+          </button>
         </div>
 
         <div className="dashboard-card p-2.5">
@@ -149,14 +179,14 @@ export default function AgendamentosPage() {
                     {format(parseISO(date), "EEEE, dd 'de' MMMM", { locale: ptBR })}
                   </h2>
                   <div className="space-y-2.5">
-                    {dayAppointments.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} onAction={(id, action) => setActionDialog({ open: true, id, action })} />)}
+                    {dayAppointments.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} onAction={(id, action) => setActionDialog({ open: true, id, action })} onPaymentConfirm={confirmPayment} paymentLoading={paymentLoadingId === appointment.id} />)}
                   </div>
                 </section>
               ))}
             </div>
           ) : (
             <div className="space-y-2.5">
-              {appointments.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} onAction={(id, action) => setActionDialog({ open: true, id, action })} />)}
+              {appointments.map((appointment) => <AppointmentCard key={appointment.id} appointment={appointment} onAction={(id, action) => setActionDialog({ open: true, id, action })} onPaymentConfirm={confirmPayment} paymentLoading={paymentLoadingId === appointment.id} />)}
             </div>
           )
         )}
@@ -171,6 +201,16 @@ export default function AgendamentosPage() {
         onConfirm={handleAction}
         loading={actionLoading}
         variant={actionDialog.action === 'cancelled' ? 'destructive' : 'default'}
+      />
+      <ManualAppointmentDialog
+        open={manualAppointmentOpen}
+        barber={barber}
+        initialDate={selectedDate}
+        onOpenChange={setManualAppointmentOpen}
+        onCreated={(date) => {
+          setSelectedDate(date)
+          loadData()
+        }}
       />
     </>
   )

@@ -29,7 +29,7 @@ export function SubscriptionCheckoutButton({
       }
 
       if (result.status === 'active' || result.status === 'plan_updated') {
-        window.location.reload()
+        window.location.replace('/dashboard')
         return
       }
 

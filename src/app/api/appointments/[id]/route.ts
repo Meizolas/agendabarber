@@ -33,12 +33,19 @@ export async function PATCH(
       return NextResponse.json({ error: 'Nao autorizado' }, { status: 403 })
     }
 
+    const updates: { status?: 'confirmed' | 'cancelled' | 'completed'; payment_status?: 'pending_confirmation' | 'paid'; payment_confirmed_at?: string | null } = {}
+    if (parsed.data.status) updates.status = parsed.data.status
+    if (parsed.data.payment_status) {
+      updates.payment_status = parsed.data.payment_status
+      updates.payment_confirmed_at = parsed.data.payment_status === 'paid' ? new Date().toISOString() : null
+    }
+
     const { data, error } = await adminClient
       .from('appointments')
-      .update({ status: parsed.data.status })
+      .update(updates)
       .eq('id', id)
       .eq('barber_id', barber.id)
-      .select('*, service:services(*)')
+      .select('*, service:services(*), staff_member:staff_members(*)')
       .single()
 
     if (error || !data) {

@@ -66,7 +66,7 @@ export default function EquipePage() {
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#F5C400] text-black"><UsersRound className="h-5 w-5" /></span>
           </div>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10"><span className="block h-full rounded-full bg-[#F5C400] transition-all" style={{ width: `${Math.min(100, (active.length / limit) * 100)}%` }} /></div>
-          <div className="mt-2 flex justify-between text-[10px]"><span className="text-[#A2A6AD]">{active.length} de {limit} vagas utilizadas</span><a href="/assinatura" className="font-medium text-[#F5C400]">Alterar plano</a></div>
+          <div className="mt-2 flex justify-between text-[10px]"><span className="text-[#A2A6AD]">{active.length} de {limit} vagas utilizadas</span><a href="/assinatura?gerenciar=1" className="font-medium text-[#F5C400]">Alterar plano</a></div>
         </section>
 
         <div className="space-y-2">

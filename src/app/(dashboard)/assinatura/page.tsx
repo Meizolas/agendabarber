@@ -1,15 +1,22 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Bell, CalendarDays, Check, Infinity, Link2, LockKeyhole, ShieldCheck } from 'lucide-react'
+import { Bell, CalendarDays, Check, Infinity, Link2, LockKeyhole, MessageCircle, ShieldCheck } from 'lucide-react'
+import { ActiveSubscriptionRedirect } from '@/components/billing/ActiveSubscriptionRedirect'
 import { PlanCards } from '@/components/billing/PlanCards'
 import { BillingReconciler } from '@/components/billing/BillingReconciler'
 import { getCurrentUser } from '@/lib/auth/session'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getBillingAccessByBarberId } from '@/lib/billing/access'
 import { planForAmount } from '@/lib/billing/plans'
+import { getSupportWhatsAppUrl } from '@/lib/support'
 
-export default async function AssinaturaPage() {
+export default async function AssinaturaPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ gerenciar?: string }>
+}) {
   const user = await getCurrentUser()
+  const params = searchParams ? await searchParams : {}
   const admin = createServiceClient()
   const { data: barber } = await admin.from('barbers').select('*').eq('user_id', user!.id).maybeSingle()
   const { data: subscription } = barber
@@ -21,6 +28,9 @@ export default async function AssinaturaPage() {
 
   const access = barber ? await getBillingAccessByBarberId(barber.id) : null
   const isActive = access?.reason === 'active_subscription'
+  const managingPlan = params.gerenciar === '1'
+  if (isActive && !managingPlan) return <ActiveSubscriptionRedirect />
+
   const inferredPlan = planForAmount(Number(subscription?.amount ?? 39))
   const currentPlan = subscription?.plan_code ?? inferredPlan.code
   const initials = barber?.barber_name?.split(/\s+/).slice(0, 2).map((part: string) => part[0]).join('').toUpperCase() || 'AB'
@@ -49,6 +59,11 @@ export default async function AssinaturaPage() {
       <section className="relative z-10 mt-4">
         <PlanCards currentPlan={currentPlan} subscriptionActive={isActive} staffCount={staffCount ?? 0} />
       </section>
+
+      <a href={getSupportWhatsAppUrl('Ola! Preciso de suporte com minha assinatura no AgendBarber.')} target="_blank" rel="noreferrer" className="relative z-10 mt-4 flex min-h-14 items-center gap-3 rounded-2xl border border-[#22C55E]/25 bg-[#101214] px-4 text-left transition hover:border-[#22C55E]/45">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#22C55E]/10 text-[#22C55E]"><MessageCircle className="h-5 w-5" /></span>
+        <span className="min-w-0 flex-1"><strong className="block text-sm font-semibold text-white">Falar com suporte</strong><span className="text-[11px] text-[#858585]">Ajuda pelo WhatsApp sobre planos e pagamentos</span></span>
+      </a>
 
       <section className="relative z-10 mt-5 rounded-2xl border border-white/10 bg-[#101214] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.025)]">
         <div className="flex items-start gap-3.5">
