@@ -8,6 +8,10 @@ export interface Barber {
   logo_url: string | null
   pix_key?: string | null
   pix_key_type?: 'cpf' | 'cnpj' | 'email' | 'phone' | 'random' | null
+  trial_started_at?: string | null
+  trial_ends_at?: string | null
+  trial_plan_code?: 'solo' | 'team' | 'studio' | null
+  trial_converted_at?: string | null
   created_at: string
   updated_at: string
 }

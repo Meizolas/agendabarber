@@ -3,7 +3,7 @@ export const BILLING_PLANS = [
     code: 'solo',
     name: 'Essencial',
     tagline: 'Para quem atende sozinho',
-    price: 39.9,
+    price: 19.9,
     staffLimit: 1,
     featured: false,
   },
@@ -11,7 +11,7 @@ export const BILLING_PLANS = [
     code: 'team',
     name: 'Equipe',
     tagline: 'Para barbearias em crescimento',
-    price: 79.9,
+    price: 49.9,
     staffLimit: 3,
     featured: true,
   },
@@ -19,7 +19,7 @@ export const BILLING_PLANS = [
     code: 'studio',
     name: 'Barbearia',
     tagline: 'Para equipes maiores',
-    price: 119.9,
+    price: 79.9,
     staffLimit: 6,
     featured: false,
   },
@@ -33,5 +33,6 @@ export function getBillingPlan(value: unknown): BillingPlan | null {
 }
 
 export function planForAmount(value: number): BillingPlan {
-  return BILLING_PLANS.find((plan) => plan.price === value) ?? BILLING_PLANS[0]
+  return BILLING_PLANS.find((plan) => plan.price === value)
+    ?? (value >= 100 ? BILLING_PLANS[2] : value >= 40 ? BILLING_PLANS[1] : BILLING_PLANS[0])
 }

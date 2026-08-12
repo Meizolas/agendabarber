@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Bell, CalendarDays, Check, Infinity, Link2, LockKeyhole, MessageCircle, ShieldCheck } from 'lucide-react'
+import { Bell, CalendarDays, Check, Hourglass, Infinity, Link2, LockKeyhole, MessageCircle, ShieldCheck } from 'lucide-react'
 import { ActiveSubscriptionRedirect } from '@/components/billing/ActiveSubscriptionRedirect'
 import { PlanCards } from '@/components/billing/PlanCards'
 import { BillingReconciler } from '@/components/billing/BillingReconciler'
@@ -9,6 +9,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getBillingAccessByBarberId } from '@/lib/billing/access'
 import { planForAmount } from '@/lib/billing/plans'
 import { getSupportWhatsAppUrl } from '@/lib/support'
+import { calendarDaysBetween, getSaoPauloDate } from '@/lib/utils/timezone'
 
 export default async function AssinaturaPage({
   searchParams,
@@ -28,6 +29,10 @@ export default async function AssinaturaPage({
 
   const access = barber ? await getBillingAccessByBarberId(barber.id) : null
   const isActive = access?.reason === 'active_subscription'
+  const today = getSaoPauloDate()
+  const trialDaysLeft = access?.reason === 'free_trial' && access.trialEndsAt
+    ? Math.max(1, calendarDaysBetween(today, getSaoPauloDate(new Date(access.trialEndsAt))))
+    : null
   const managingPlan = params.gerenciar === '1'
   if (isActive && !managingPlan) return <ActiveSubscriptionRedirect />
 
@@ -56,7 +61,13 @@ export default async function AssinaturaPage({
       <CapacityScale />
       <Benefits />
 
-      <section className="relative z-10 mt-4">
+      <section data-tour="plans-main" className="relative z-10 mt-4">
+        {trialDaysLeft && (
+          <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[#F5C400]/30 bg-[#F5C400]/[0.07] p-3.5">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#F5C400]/10 text-[#F5C400]"><Hourglass className="h-5 w-5" /></span>
+            <div><p className="text-xs font-semibold text-white">Você está no teste gratuito</p><p className="mt-0.5 text-[10px] text-[#A7A7A7]">{trialDaysLeft} {trialDaysLeft === 1 ? 'dia restante' : 'dias restantes'}. A cobrança será programada para depois do teste.</p></div>
+          </div>
+        )}
         <PlanCards currentPlan={currentPlan} subscriptionActive={isActive} staffCount={staffCount ?? 0} />
       </section>
 

@@ -384,6 +384,53 @@ O app considera o fuso `America/Sao_Paulo` para agenda, validacao de datas e pai
 A Evolution API precisa estar acessivel pela internet via HTTPS; enderecos locais
 ou privados nao podem ser acessados pelas funcoes da Vercel.
 
+## Teste gratuito e cupons
+
+A migration `202608060002_trials_and_coupons.sql` libera sete dias de teste
+gratuito para novas barbearias. Contas existentes nao recebem um novo trial
+automaticamente. Durante o trial, o plano disponivel e o Essencial.
+
+Os codigos promocionais sao criados em `billing_coupons`, e nao no painel do
+Asaas. Exemplo de cupom de 50% na primeira mensalidade:
+
+```sql
+insert into public.billing_coupons (
+  code, description, discount_type, discount_value, plan_codes,
+  valid_until, max_redemptions, new_customers_only
+) values (
+  'BAIRRO50',
+  '50% na primeira mensalidade',
+  'percentage',
+  50,
+  array['solo', 'team', 'studio'],
+  '2026-12-31 23:59:59-03',
+  100,
+  true
+);
+```
+
+Exemplo de desconto fixo de R$ 20 apenas no Essencial:
+
+```sql
+insert into public.billing_coupons (
+  code, description, discount_type, discount_value, plan_codes,
+  max_redemptions, new_customers_only
+) values (
+  'ESSENCIAL20',
+  'R$ 20 de desconto na primeira mensalidade',
+  'fixed',
+  20,
+  array['solo'],
+  50,
+  true
+);
+```
+
+O checkout cria a primeira cobranca com o valor promocional. No evento de
+assinatura, o app restaura no Asaas o preco integral das renovacoes com
+`updatePendingPayments: false`, preservando o desconto da primeira cobranca.
+Por isso, os eventos de assinatura e pagamento do Webhook sao obrigatorios.
+
 ## Problemas comuns
 
 ### Erro de Supabase URL ou chave

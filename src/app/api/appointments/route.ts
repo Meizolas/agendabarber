@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 import { createAppointmentSchema } from '@/lib/validations/appointment'
 import { enforceRateLimit, requestFingerprint } from '@/lib/security/request'
 import type { Appointment } from '@/types'
 import { getBillingAccessByBarberId } from '@/lib/billing/access'
+import { notifyNewAppointment } from '@/lib/push/send'
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,7 +53,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ barber, appointments: data ?? [] })
+    return NextResponse.json(
+      { barber, appointments: data ?? [] },
+      { headers: { 'Cache-Control': 'private, no-store, max-age=0' } },
+    )
   } catch (err) {
     console.error('[Appointments GET] Unexpected error:', err)
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
@@ -167,6 +171,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Agendamento nao retornado pelo banco.' }, { status: 500 })
     }
 
+    after(() => notifyNewAppointment({ ...createdAppointment, service }).catch((pushError) => console.error('[Appointments POST] Push failed:', pushError)))
     return NextResponse.json({ appointment: createdAppointment }, { status: 201 })
   } catch (err) {
     console.error('[Appointments POST] Unexpected error:', err)

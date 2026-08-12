@@ -25,7 +25,7 @@ export function Sidebar() {
   }, [router])
 
   return (
-    <nav className={cn(
+    <nav data-tour="bottom-navigation" className={cn(
       'fixed left-1/2 z-50 grid -translate-x-1/2 grid-cols-5 bg-[#0B0D0F]/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl',
       plansPage
         ? 'bottom-1 w-[calc(100%-12px)] max-w-[418px] rounded-[30px] border border-white/15 shadow-[0_-8px_30px_rgba(0,0,0,.65)]'

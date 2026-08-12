@@ -253,7 +253,7 @@ export default function HorariosPage() {
   return (
     <>
       <Header barber={barber} title="Horários de atendimento" />
-      <div className="flex-1 space-y-4 px-4 pb-5">
+      <div data-tour="hours-main" className="flex-1 space-y-4 px-4 pb-5">
         <div className="grid grid-cols-7 gap-1.5">
           {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((label, day) => (
             <button key={label} type="button" onClick={() => setSelectedDay(day)} className={`aspect-square rounded-full text-[9px] font-medium transition ${selectedDay === day ? 'bg-[#F5C400] text-black' : 'border border-white/10 bg-[#15181B] text-[#858A93]'}`}>{label}</button>
@@ -290,7 +290,7 @@ export default function HorariosPage() {
 
         <Button className="gold-action w-full" onClick={handleSaveSelectedRule} disabled={formLoading}>{formLoading ? 'Salvando...' : selectedRule ? 'Salvar horários' : 'Adicionar dia'}</Button>
 
-        <section className="pt-1">
+        <section data-tour="blocked-times" className="pt-1">
           <div className="mb-2 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-xs font-medium text-white"><Ban className="h-4 w-4 text-[#F5C400]" /> Horários bloqueados</h2>
             <Button variant="ghost" size="sm" className="h-8 gap-1 text-[10px] text-[#F5C400]" onClick={() => setBlockFormOpen(true)}><Plus className="h-3.5 w-3.5" /> Bloquear</Button>

@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 
 export type BillingAccessReason =
   | 'active_subscription'
+  | 'free_trial'
   | 'grace_period'
   | 'manual_override'
   | 'payment_required'
@@ -12,11 +13,14 @@ export interface BillingAccess {
   reason: BillingAccessReason
   barberId: string | null
   subscriptionStatus: string | null
+  trialEndsAt: string | null
 }
 
 type AccessBarber = {
   id: string
   access_override_until: string | null
+  trial_ends_at: string | null
+  trial_converted_at: string | null
 }
 
 type AccessSubscription = {
@@ -36,6 +40,7 @@ function evaluate(barber: AccessBarber, subscription: AccessSubscription | null)
       reason: 'manual_override',
       barberId: barber.id,
       subscriptionStatus: subscription?.status ?? null,
+      trialEndsAt: barber.trial_ends_at,
     }
   }
 
@@ -48,6 +53,17 @@ function evaluate(barber: AccessBarber, subscription: AccessSubscription | null)
       reason: 'active_subscription',
       barberId: barber.id,
       subscriptionStatus: subscription.status,
+      trialEndsAt: barber.trial_ends_at,
+    }
+  }
+
+  if (future(barber.trial_ends_at) && !barber.trial_converted_at) {
+    return {
+      allowed: true,
+      reason: 'free_trial',
+      barberId: barber.id,
+      subscriptionStatus: subscription?.status ?? null,
+      trialEndsAt: barber.trial_ends_at,
     }
   }
 
@@ -57,6 +73,7 @@ function evaluate(barber: AccessBarber, subscription: AccessSubscription | null)
       reason: 'grace_period',
       barberId: barber.id,
       subscriptionStatus: subscription?.status ?? null,
+      trialEndsAt: barber.trial_ends_at,
     }
   }
 
@@ -65,18 +82,19 @@ function evaluate(barber: AccessBarber, subscription: AccessSubscription | null)
     reason: 'payment_required',
     barberId: barber.id,
     subscriptionStatus: subscription?.status ?? null,
+    trialEndsAt: barber.trial_ends_at,
   }
 }
 
 export async function getBillingAccessByUserId(userId: string): Promise<BillingAccess> {
   const { data: barber } = await createServiceClient()
     .from('barbers')
-    .select('id, access_override_until, subscriptions(status, current_period_end, grace_until)')
+    .select('id, access_override_until, trial_ends_at, trial_converted_at, subscriptions(status, current_period_end, grace_until)')
     .eq('user_id', userId)
     .maybeSingle()
 
   if (!barber) {
-    return { allowed: false, reason: 'barber_not_found', barberId: null, subscriptionStatus: null }
+    return { allowed: false, reason: 'barber_not_found', barberId: null, subscriptionStatus: null, trialEndsAt: null }
   }
 
   const relation = (barber as unknown as { subscriptions?: AccessSubscription | AccessSubscription[] | null }).subscriptions
@@ -87,12 +105,12 @@ export async function getBillingAccessByUserId(userId: string): Promise<BillingA
 export async function getBillingAccessByBarberId(barberId: string): Promise<BillingAccess> {
   const { data: barber } = await createServiceClient()
     .from('barbers')
-    .select('id, access_override_until, subscriptions(status, current_period_end, grace_until)')
+    .select('id, access_override_until, trial_ends_at, trial_converted_at, subscriptions(status, current_period_end, grace_until)')
     .eq('id', barberId)
     .maybeSingle()
 
   if (!barber) {
-    return { allowed: false, reason: 'barber_not_found', barberId: null, subscriptionStatus: null }
+    return { allowed: false, reason: 'barber_not_found', barberId: null, subscriptionStatus: null, trialEndsAt: null }
   }
 
   const relation = (barber as unknown as { subscriptions?: AccessSubscription | AccessSubscription[] | null }).subscriptions

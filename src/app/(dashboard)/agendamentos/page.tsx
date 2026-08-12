@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { addDays, format, parseISO, startOfWeek } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -31,9 +31,16 @@ export default function AgendamentosPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const [paymentLoadingId, setPaymentLoadingId] = useState<string | null>(null)
   const [manualAppointmentOpen, setManualAppointmentOpen] = useState(false)
+  const appointmentsRef = useRef<Appointment[]>([])
+  const requestIdRef = useRef(0)
   const { toast } = useToast()
 
-  const loadData = useCallback(async () => {
+  useEffect(() => {
+    appointmentsRef.current = appointments
+  }, [appointments])
+
+  const loadData = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    const requestId = ++requestIdRef.current
     const selected = parseISO(selectedDate)
     const firstDay = startOfWeek(selected, { weekStartsOn: 0 })
     const params = new URLSearchParams({ status: statusFilter })
@@ -45,41 +52,77 @@ export default function AgendamentosPage() {
       params.set('date', selectedDate)
     }
 
-    const response = await fetch(`/api/appointments?${params.toString()}`)
-    const payload = await response.json().catch(() => null)
-    if (!response.ok) {
-      if (window.localStorage.getItem(DEMO_STORAGE_KEY) === 'admin') {
-        const demoAppointments: Appointment[] = [
-          {
-            id: 'demo-appointment-1', barber_id: demoBarber.id, service_id: demoServices[0].id,
-            client_name: 'Cliente Teste', client_whatsapp: '11988887777', appointment_date: selectedDate,
-            appointment_time: '10:30:00', notes: 'Corte social com acabamento.', status: 'confirmed',
-            created_at: '', updated_at: '', service: demoServices[0],
-          },
-          {
-            id: 'demo-appointment-2', barber_id: demoBarber.id, service_id: demoServices[1].id,
-            client_name: 'Lucas Almeida', client_whatsapp: '11977776666', appointment_date: format(addDays(selected, 1), 'yyyy-MM-dd'),
-            appointment_time: '14:30:00', notes: null, status: 'completed',
-            created_at: '', updated_at: '', service: demoServices[1],
-          },
-        ]
-        const visibleDemoAppointments = viewMode === 'week'
-          ? demoAppointments
-          : demoAppointments.filter((item) => item.appointment_date === selectedDate)
-        setDemoMode(true)
-        setBarber(demoBarber)
-        setAppointments(statusFilter === 'all' ? visibleDemoAppointments : visibleDemoAppointments.filter((item) => item.status === statusFilter))
+    try {
+      const response = await fetch(`/api/appointments?${params.toString()}`, { cache: 'no-store' })
+      const payload = await response.json().catch(() => null)
+      if (requestId !== requestIdRef.current) return
+      if (!response.ok) {
+        if (window.localStorage.getItem(DEMO_STORAGE_KEY) === 'admin') {
+          const demoAppointments: Appointment[] = [
+            {
+              id: 'demo-appointment-1', barber_id: demoBarber.id, service_id: demoServices[0].id,
+              client_name: 'Cliente Teste', client_whatsapp: '11988887777', appointment_date: selectedDate,
+              appointment_time: '10:30:00', notes: 'Corte social com acabamento.', status: 'confirmed',
+              created_at: '', updated_at: '', service: demoServices[0],
+            },
+            {
+              id: 'demo-appointment-2', barber_id: demoBarber.id, service_id: demoServices[1].id,
+              client_name: 'Lucas Almeida', client_whatsapp: '11977776666', appointment_date: format(addDays(selected, 1), 'yyyy-MM-dd'),
+              appointment_time: '14:30:00', notes: null, status: 'completed',
+              created_at: '', updated_at: '', service: demoServices[1],
+            },
+          ]
+          const visibleDemoAppointments = viewMode === 'week'
+            ? demoAppointments
+            : demoAppointments.filter((item) => item.appointment_date === selectedDate)
+          setDemoMode(true)
+          setBarber(demoBarber)
+          setAppointments(statusFilter === 'all' ? visibleDemoAppointments : visibleDemoAppointments.filter((item) => item.status === statusFilter))
+        } else if (!silent) {
+          toast({ title: 'Erro ao carregar agendamentos', description: payload?.error ?? 'Tente novamente.', variant: 'destructive' })
+        }
       } else {
-        toast({ title: 'Erro ao carregar agendamentos', description: payload?.error ?? 'Tente novamente.', variant: 'destructive' })
+        const nextAppointments = (payload.appointments ?? []) as Appointment[]
+        const previousIds = new Set(appointmentsRef.current.map((item) => item.id))
+        const newAppointments = silent
+          ? nextAppointments.filter((item) => !previousIds.has(item.id))
+          : []
+
+        setBarber(payload.barber)
+        setAppointments(nextAppointments)
+        appointmentsRef.current = nextAppointments
+
+        if (newAppointments.length > 0) {
+          toast({
+            title: newAppointments.length === 1 ? 'Novo agendamento recebido' : `${newAppointments.length} novos agendamentos`,
+            description: newAppointments.length === 1
+              ? `${newAppointments[0].client_name} foi adicionado à agenda.`
+              : 'Sua agenda foi atualizada automaticamente.',
+          })
+        }
       }
-    } else {
-      setBarber(payload.barber)
-      setAppointments(payload.appointments ?? [])
+    } finally {
+      if (requestId === requestIdRef.current) setLoading(false)
     }
-    setLoading(false)
   }, [selectedDate, statusFilter, toast, viewMode])
 
   useEffect(() => { loadData() }, [loadData])
+
+  useEffect(() => {
+    const syncAppointments = () => {
+      if (document.visibilityState === 'visible') void loadData({ silent: true })
+    }
+
+    const interval = window.setInterval(syncAppointments, 4000)
+    document.addEventListener('visibilitychange', syncAppointments)
+    window.addEventListener('focus', syncAppointments)
+
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', syncAppointments)
+      window.removeEventListener('focus', syncAppointments)
+    }
+  }, [loadData])
 
   const handleAction = async () => {
     if (!actionDialog.id || !actionDialog.action) return
@@ -136,7 +179,7 @@ export default function AgendamentosPage() {
     <>
       <Header barber={barber} title="Agendamentos" />
       <div className="flex-1 space-y-3 px-4 pb-5">
-        <div className="flex items-center justify-between gap-3">
+        <div data-tour="agenda-controls" className="flex items-center justify-between gap-3">
           <div className="inline-flex rounded-md border border-white/10 bg-[#101214] p-0.5 text-[10px]">
             <button type="button" aria-pressed={viewMode === 'day'} onClick={() => setViewMode('day')} className={`rounded px-4 py-1.5 ${viewMode === 'day' ? 'bg-[#F5C400] text-black' : 'text-[#858A93]'}`}>Dia</button>
             <button type="button" aria-pressed={viewMode === 'week'} onClick={() => setViewMode('week')} className={`rounded px-4 py-1.5 ${viewMode === 'week' ? 'bg-[#F5C400] text-black' : 'text-[#858A93]'}`}>Semana</button>
@@ -168,6 +211,7 @@ export default function AgendamentosPage() {
           ))}
         </div>
 
+        <div data-tour="agenda-list">
         {appointments.length === 0 ? (
           <div className="dashboard-card p-8 text-center"><CalendarCheck className="mx-auto mb-3 h-10 w-10 text-[#F5C400]" /><p className="text-xs font-medium text-[#858A93]">Nenhum agendamento encontrado</p></div>
         ) : (
@@ -190,6 +234,7 @@ export default function AgendamentosPage() {
             </div>
           )
         )}
+        </div>
       </div>
 
       <ConfirmDialog

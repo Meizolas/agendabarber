@@ -59,7 +59,7 @@ export default function EquipePage() {
   return (
     <>
       <Header barber={barber} title="Equipe" />
-      <div className="flex-1 space-y-4 px-4 pb-5">
+      <div data-tour="team-main" className="flex-1 space-y-4 px-4 pb-5">
         <section className="rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(245,196,0,.15),transparent_45%),#111315] p-4">
           <div className="flex items-center justify-between">
             <div><p className="text-[10px] uppercase tracking-[.18em] text-[#F5C400]">Sua barbearia</p><h1 className="mt-1 text-lg font-semibold">Profissionais</h1></div>

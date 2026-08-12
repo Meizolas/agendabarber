@@ -22,6 +22,14 @@ export function addCalendarDays(date: string, amount: number) {
   return value.toISOString().slice(0, 10)
 }
 
+export function calendarDaysBetween(fromDate: string, toDate: string) {
+  const [fromYear, fromMonth, fromDay] = fromDate.split('-').map(Number)
+  const [toYear, toMonth, toDay] = toDate.split('-').map(Number)
+  const from = Date.UTC(fromYear, fromMonth - 1, fromDay)
+  const to = Date.UTC(toYear, toMonth - 1, toDay)
+  return Math.round((to - from) / 86_400_000)
+}
+
 export function getSaoPauloDayAndMinutes(date = new Date()) {
   const parts = getSaoPauloParts(date)
   const weekdays: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }

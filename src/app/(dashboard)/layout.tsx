@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/session'
 import { Sidebar } from '@/components/dashboard/Sidebar'
+import { ProductTour } from '@/components/tour/ProductTour'
+import { PwaNotificationPrompt } from '@/components/pwa/PwaNotificationPrompt'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser()
@@ -10,9 +12,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="min-h-screen bg-[#030405] text-white">
       <main className="dashboard-frame mx-auto flex min-h-screen w-full max-w-[430px] flex-col border-x border-white/[0.06] bg-[#080A0C] pb-24 shadow-[0_0_80px_rgba(0,0,0,0.7)]">
+        <PwaNotificationPrompt />
         {children}
       </main>
       <Sidebar />
+      <ProductTour />
     </div>
   )
 }

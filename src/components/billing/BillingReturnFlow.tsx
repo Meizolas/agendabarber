@@ -16,6 +16,7 @@ export function BillingReturnFlow({ status }: { status: ReturnStatus }) {
   const router = useRouter()
   const [state, setState] = useState<ReconcileState>('checking')
   const [attempt, setAttempt] = useState(0)
+  const [trialScheduled, setTrialScheduled] = useState(false)
   const runId = useRef(0)
 
   const reconcile = useCallback(async () => {
@@ -32,7 +33,8 @@ export function BillingReturnFlow({ status }: { status: ReturnStatus }) {
           cache: 'no-store',
         })
         const result = await response.json().catch(() => null)
-        if (response.ok && result?.active) {
+        if (response.ok && (result?.active || (result?.accessAllowed && result?.accessReason === 'free_trial'))) {
+          setTrialScheduled(!result?.active && result?.accessReason === 'free_trial')
           setState('activated')
           await new Promise((resolve) => window.setTimeout(resolve, 700))
           window.location.replace('/dashboard')
@@ -48,7 +50,7 @@ export function BillingReturnFlow({ status }: { status: ReturnStatus }) {
       await new Promise((resolve) => window.setTimeout(resolve, RETRY_INTERVAL_MS))
     }
     if (currentRun === runId.current) setState('delayed')
-  }, [router])
+  }, [])
 
   useEffect(() => {
     if (status !== 'success') return
@@ -80,11 +82,11 @@ export function BillingReturnFlow({ status }: { status: ReturnStatus }) {
       )}
 
       <h1 className="mt-6 text-2xl font-semibold text-white">
-        {state === 'activated' ? 'Plano ativado!' : state === 'checking' ? 'Confirmando seu pagamento' : state === 'error' ? 'Sessão expirada' : 'Confirmação em andamento'}
+        {state === 'activated' ? (trialScheduled ? 'Assinatura agendada!' : 'Plano ativado!') : state === 'checking' ? 'Confirmando seu pagamento' : state === 'error' ? 'Sessão expirada' : 'Confirmação em andamento'}
       </h1>
       <p className="mt-2 text-sm leading-relaxed text-[#9499A1]">
         {state === 'activated'
-          ? 'Tudo pronto. Estamos abrindo seu painel.'
+          ? trialScheduled ? 'Cartão cadastrado. A primeira cobrança será feita após o teste gratuito.' : 'Tudo pronto. Estamos abrindo seu painel.'
           : state === 'checking'
             ? 'O Asaas já recebeu seus dados. Aguarde alguns segundos enquanto liberamos o acesso automaticamente.'
             : state === 'error'

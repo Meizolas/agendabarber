@@ -52,7 +52,7 @@ export function RegisterForm() {
     }
 
     toast({ title: 'Conta criada!', description: 'Bem-vindo ao AgendBarber.' })
-    router.replace('/assinatura')
+    router.replace('/dashboard')
     router.refresh()
   }
 

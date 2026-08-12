@@ -82,6 +82,8 @@ export async function proxy(request: NextRequest) {
     '/api/service-images',
     '/api/services',
     '/api/staff',
+    '/api/financial-goal',
+    '/api/push',
     '/api/whatsapp',
   ].some((route) => pathname.startsWith(route))
 

@@ -10,7 +10,8 @@ export function SubscriptionCheckoutButton({
   disabled = false,
   label = 'Escolher plano',
   featured = false,
-}: { planCode: string; disabled?: boolean; label?: string; featured?: boolean }) {
+  couponCode,
+}: { planCode: string; disabled?: boolean; label?: string; featured?: boolean; couponCode?: string | null }) {
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
@@ -20,7 +21,7 @@ export function SubscriptionCheckoutButton({
       const response = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planCode }),
+        body: JSON.stringify({ planCode, couponCode: couponCode || undefined }),
       })
       const result = await response.json().catch(() => ({}))
 

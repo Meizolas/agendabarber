@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { planForAmount } from '@/lib/billing/plans'
+import { getBillingPlan } from '@/lib/billing/plans'
+import { updateRecurringSubscription } from '@/lib/asaas/client'
 
 type JsonObject = Record<string, unknown>
 
@@ -74,7 +75,7 @@ async function findCheckout(admin: SupabaseClient, providerId?: string | null, e
   if (providerId) {
     const { data } = await admin
       .from('billing_checkouts')
-      .select('id, barber_id, subscription_id')
+      .select('id, barber_id, subscription_id, plan_code, amount, coupon_redemption_id, recurring_price_restored_at')
       .eq('provider_checkout_id', providerId)
       .maybeSingle()
     if (data) return data
@@ -83,13 +84,38 @@ async function findCheckout(admin: SupabaseClient, providerId?: string | null, e
   if (externalReference) {
     const { data } = await admin
       .from('billing_checkouts')
-      .select('id, barber_id, subscription_id')
+      .select('id, barber_id, subscription_id, plan_code, amount, coupon_redemption_id, recurring_price_restored_at')
       .eq('external_reference', externalReference)
       .maybeSingle()
     if (data) return data
   }
 
   return null
+}
+
+async function restoreRecurringPriceAfterCoupon(
+  admin: SupabaseClient,
+  checkout: Awaited<ReturnType<typeof findCheckout>>,
+  providerSubscriptionId: string | null,
+  localSubscriptionId: string,
+) {
+  if (!checkout?.coupon_redemption_id || checkout.recurring_price_restored_at || !providerSubscriptionId) return
+  const plan = getBillingPlan(checkout.plan_code)
+  if (!plan) throw new Error('COUPON_PLAN_NOT_FOUND')
+
+  await updateRecurringSubscription({
+    subscriptionId: providerSubscriptionId,
+    externalReference: `subscription:${localSubscriptionId}`,
+    planName: plan.name,
+    price: plan.price,
+  })
+
+  const restoredAt = new Date().toISOString()
+  const [{ error: checkoutError }, { error: redemptionError }] = await Promise.all([
+    admin.from('billing_checkouts').update({ recurring_price_restored_at: restoredAt }).eq('id', checkout.id).is('recurring_price_restored_at', null),
+    admin.from('billing_coupon_redemptions').update({ status: 'applied', redeemed_at: restoredAt }).eq('id', checkout.coupon_redemption_id).eq('status', 'reserved'),
+  ])
+  if (checkoutError || redemptionError) throw checkoutError || redemptionError
 }
 
 async function findSubscription(admin: SupabaseClient, providerId?: string | null, localId?: string | null) {
@@ -194,11 +220,13 @@ async function processSubscriptionEvent(
     last_event_at: eventAt,
   }
   const value = number(providerSubscription.value)
-  if (value !== null) {
-    const plan = planForAmount(value)
+  if (value !== null && !checkout?.coupon_redemption_id) {
     changes.amount = value
-    changes.plan_code = plan.code
-    changes.staff_limit = plan.staffLimit
+    const checkoutPlan = getBillingPlan(checkout?.plan_code)
+    if (checkoutPlan) {
+      changes.plan_code = checkoutPlan.code
+      changes.staff_limit = checkoutPlan.staffLimit
+    }
   }
   if (canceled) {
     changes.status = 'canceled'
@@ -207,6 +235,7 @@ async function processSubscriptionEvent(
 
   const { error } = await admin.from('subscriptions').update(changes).eq('id', subscription.id)
   if (error) throw error
+  await restoreRecurringPriceAfterCoupon(admin, checkout, providerId, subscription.id)
 
   return {
     status: 'processed',
@@ -246,6 +275,7 @@ async function processPaymentEvent(
       .eq('id', subscription.id)
     if (bindingError) throw bindingError
   }
+  await restoreRecurringPriceAfterCoupon(admin, checkout, providerSubscriptionId, subscription.id)
 
   const confirmedAt = asaasDate(payment.confirmedDate)
   const receivedAt = asaasDate(payment.paymentDate) || asaasDate(payment.clientPaymentDate)
@@ -316,6 +346,15 @@ async function processPaymentEvent(
       .update(changes)
       .eq('id', subscription.id)
     if (subscriptionError) throw subscriptionError
+
+    if (successfulEvents.includes(payload.event)) {
+      const { error: trialError } = await admin
+        .from('barbers')
+        .update({ trial_converted_at: eventAt })
+        .eq('id', subscription.barber_id)
+        .is('trial_converted_at', null)
+      if (trialError) throw trialError
+    }
   }
 
   return {

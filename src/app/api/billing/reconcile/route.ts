@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getCurrentUser } from '@/lib/auth/session'
 import { processAsaasWebhook, type AsaasWebhookPayload } from '@/lib/asaas/webhook'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getBillingAccessByBarberId } from '@/lib/billing/access'
 
 export async function POST() {
   const user = await getCurrentUser()
@@ -12,7 +13,10 @@ export async function POST() {
 
   const { data: checkouts } = await admin.from('billing_checkouts').select('provider_checkout_id').eq('barber_id', barber.id)
   const checkoutIds = new Set((checkouts ?? []).map((checkout) => checkout.provider_checkout_id).filter(Boolean))
-  if (checkoutIds.size === 0) return NextResponse.json({ reconciled: 0, active: false })
+  if (checkoutIds.size === 0) {
+    const access = await getBillingAccessByBarberId(barber.id)
+    return NextResponse.json({ reconciled: 0, active: false, accessAllowed: access.allowed, accessReason: access.reason })
+  }
 
   const { data: events } = await admin
     .from('billing_events')
@@ -42,5 +46,11 @@ export async function POST() {
   }
 
   const { data: subscription } = await admin.from('subscriptions').select('status').eq('barber_id', barber.id).maybeSingle()
-  return NextResponse.json({ reconciled, active: subscription?.status === 'active' })
+  const access = await getBillingAccessByBarberId(barber.id)
+  return NextResponse.json({
+    reconciled,
+    active: subscription?.status === 'active',
+    accessAllowed: access.allowed,
+    accessReason: access.reason,
+  })
 }

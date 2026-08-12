@@ -102,7 +102,7 @@ export default function PerfilPage() {
     <>
       <Header barber={barber} title="Perfil" />
       <div className="flex-1 px-4 pb-5">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+        <form data-tour="profile-main" onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
           <div className="mb-5 flex justify-center">
             <div className="relative h-28 w-28 rounded-full border-2 border-white/85 bg-[#111315] p-1">
               {logoUrl ? <img src={logoUrl} alt="Logo da barbearia" className="h-full w-full rounded-full object-cover" /> : <div className="grid h-full w-full place-items-center rounded-full text-2xl font-semibold text-[#F5C400]">AB</div>}
@@ -154,7 +154,7 @@ export default function PerfilPage() {
           </Link>
 
           <Button type="submit" className="gold-action w-full" disabled={saving || uploadingLogo}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar alterações'}</Button>
-          <a href={getSupportWhatsAppUrl()} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl border border-[#22C55E]/25 bg-[#111315] p-3 transition hover:border-[#22C55E]/45">
+          <a data-tour="support-link" href={getSupportWhatsAppUrl()} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-xl border border-[#22C55E]/25 bg-[#111315] p-3 transition hover:border-[#22C55E]/45">
             <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#22C55E]/10 text-[#22C55E]"><MessageCircle className="h-5 w-5" /></span>
             <span className="min-w-0 flex-1"><strong className="block text-xs font-medium text-white">Falar com suporte</strong><span className="text-[10px] text-[#858A93]">Atendimento pelo WhatsApp</span></span>
             <ChevronRight className="h-4 w-4 text-[#858A93]" />

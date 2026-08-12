@@ -236,7 +236,7 @@ export default function ServicosPage() {
     <>
       <Header barber={barber} title="Serviços" />
       <div className="flex-1 px-4 pb-5">
-        <div className="mb-3">
+        <div data-tour="services-actions" className="mb-3">
           <Button
             variant="outline"
             className="h-10 w-full gap-2 border-[#F5C400] bg-transparent text-xs text-[#F5C400] hover:bg-[#F5C400]/10 hover:text-[#F5C400]"
@@ -255,6 +255,7 @@ export default function ServicosPage() {
           <Button variant="outline" className="h-11 gap-2 border-white/10 bg-[#101214] px-3 text-xs text-[#A2A6AD]"><SlidersHorizontal className="h-4 w-4" /> Filtro</Button>
         </div>
 
+        <div data-tour="services-list">
         {services.length === 0 ? (
           <div className="dashboard-card p-8 text-center">
             <Scissors className="mx-auto mb-3 h-10 w-10 text-[#F5C400]" />
@@ -276,6 +277,7 @@ export default function ServicosPage() {
             ))}
           </div>
         )}
+        </div>
       </div>
 
       <ServiceForm
