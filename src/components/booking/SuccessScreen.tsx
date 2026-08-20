@@ -6,6 +6,7 @@ import { CalendarDays, Check, Clock3, Copy, MessageCircle, QrCode, Scissors, Tag
 import { formatDate, formatDuration, formatPrice, formatTime, sanitizeWhatsApp } from '@/lib/utils/format'
 import { Button } from '@/components/ui/button'
 import type { AppointmentPaymentMethod } from '@/types'
+import { detectClientDevice, type ClientDevice } from '@/lib/utils/device'
 
 interface SuccessScreenProps {
   clientName: string
@@ -19,12 +20,8 @@ interface SuccessScreenProps {
   time: string
   paymentMethod?: AppointmentPaymentMethod
   pixPayload?: string
+  calendarToken?: string | null
   onNewBooking: () => void
-}
-
-function calendarStamp(value: Date) {
-  const pad = (part: number) => String(part).padStart(2, '0')
-  return `${value.getFullYear()}${pad(value.getMonth() + 1)}${pad(value.getDate())}T${pad(value.getHours())}${pad(value.getMinutes())}00`
 }
 
 export function SuccessScreen({
@@ -39,23 +36,24 @@ export function SuccessScreen({
   time,
   paymentMethod = 'at_barbershop',
   pixPayload,
+  calendarToken,
   onNewBooking,
 }: SuccessScreenProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState('')
-  const startsAt = new Date(`${date}T${formatTime(time)}:00`)
-  const endsAt = new Date(startsAt.getTime() + serviceDuration * 60_000)
-  const calendarFile = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'BEGIN:VEVENT',
-    `DTSTART:${calendarStamp(startsAt)}`,
-    `DTEND:${calendarStamp(endsAt)}`,
-    `SUMMARY:${serviceName} - ${barbershopName}`,
-    `DESCRIPTION:Agendamento de ${clientName} na ${barbershopName}`,
-    'END:VEVENT',
-    'END:VCALENDAR',
-  ].join('\r\n')
-  const calendarHref = `data:text/calendar;charset=utf-8,${encodeURIComponent(calendarFile)}`
+  const [device, setDevice] = useState<ClientDevice>('unknown')
+  useEffect(() => setDevice(detectClientDevice()), [])
+  const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
+  const calendarHref = calendarToken ? `${appUrl}/api/calendar/${calendarToken}` : null
+  const googleDate = `${date.replace(/-/g, '')}T${formatTime(time).replace(':', '')}00`
+  const [year, month, day] = date.split('-').map(Number)
+  const [hour, minute] = formatTime(time).split(':').map(Number)
+  const googleEndDate = new Date(Date.UTC(year, month - 1, day, hour, minute + serviceDuration))
+  const pad = (value: number) => String(value).padStart(2, '0')
+  const googleEnd = `${googleEndDate.getUTCFullYear()}${pad(googleEndDate.getUTCMonth() + 1)}${pad(googleEndDate.getUTCDate())}T${pad(googleEndDate.getUTCHours())}${pad(googleEndDate.getUTCMinutes())}00`
+  const googleHref = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`${serviceName} - ${barbershopName}`)}&dates=${googleDate}/${googleEnd}&ctz=America%2FSao_Paulo&details=${encodeURIComponent(`Agendamento de ${clientName}${staffName ? ` com ${staffName}` : ''}`)}`
+  const calendarIsIos = device === 'ios'
+  const calendarLabel = calendarIsIos ? 'Adicionar ao Calendário Apple' : 'Adicionar ao Google Agenda'
+  const selectedCalendarHref = calendarIsIos ? calendarHref : googleHref
   const whatsappHref = barbershopWhatsApp
     ? `https://wa.me/${sanitizeWhatsApp(barbershopWhatsApp)}?text=${encodeURIComponent(`Ola! Gostaria de falar sobre meu agendamento de ${serviceName}.`)}`
     : null
@@ -126,8 +124,8 @@ export function SuccessScreen({
           </div>
         )}
 
-        <a href={calendarHref} download={`agendamento-${date}.ics`} className="gold-action mt-5 flex w-full items-center justify-center gap-2 text-sm">
-          <CalendarDays className="h-[18px] w-[18px]" /> Adicionar ao calendario
+        <a href={selectedCalendarHref ?? googleHref} target={calendarIsIos ? '_self' : '_blank'} rel={calendarIsIos ? undefined : 'noreferrer'} className="gold-action mt-5 flex w-full items-center justify-center gap-2 text-sm">
+          <CalendarDays className="h-[18px] w-[18px]" /> {calendarLabel}
         </a>
 
         {whatsappHref && (

@@ -30,6 +30,7 @@ interface BookingState {
   clientName: string
   paymentMethod: AppointmentPaymentMethod
   appointmentId: string | null
+  calendarToken: string | null
 }
 
 const demoBarber: Barber = {
@@ -58,7 +59,7 @@ export default function BookingPage() {
   const [notFound, setNotFound] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
   const [step, setStep] = useState<Step>('staff')
-  const [booking, setBooking] = useState<BookingState>({ staffMember: null, service: null, date: null, time: null, clientName: '', paymentMethod: 'at_barbershop', appointmentId: null })
+  const [booking, setBooking] = useState<BookingState>({ staffMember: null, service: null, date: null, time: null, clientName: '', paymentMethod: 'at_barbershop', appointmentId: null, calendarToken: null })
   const [slots, setSlots] = useState<string[]>([])
   const [unavailableSlots, setUnavailableSlots] = useState<string[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
@@ -144,7 +145,7 @@ export default function BookingPage() {
     })
     const payload = await response.json().catch(() => null)
     if (response.ok) {
-      setBooking((current) => ({ ...current, clientName: clientData.client_name, appointmentId: payload?.appointment?.id ?? null }))
+      setBooking((current) => ({ ...current, clientName: clientData.client_name, appointmentId: payload?.appointment?.id ?? null, calendarToken: payload?.calendarToken ?? null }))
       setStep('success')
     } else toast({ title: 'Erro ao agendar', description: payload?.error ?? 'Não foi possível registrar o agendamento.', variant: 'destructive' })
     setSubmitting(false)
@@ -165,7 +166,7 @@ export default function BookingPage() {
     if (currentStepIndex > 0) setStep(orderedSteps[currentStepIndex - 1])
   }
   const resetBooking = () => {
-    setBooking({ staffMember: staffSelectionEnabled ? null : firstStaffMember, service: null, date: null, time: null, clientName: '', paymentMethod: 'at_barbershop', appointmentId: null })
+    setBooking({ staffMember: staffSelectionEnabled ? null : firstStaffMember, service: null, date: null, time: null, clientName: '', paymentMethod: 'at_barbershop', appointmentId: null, calendarToken: null })
     setStep(staffSelectionEnabled ? 'staff' : 'service')
   }
   const availableDays = rules.filter((rule) => rule.is_active).map((rule) => rule.day_of_week)
@@ -196,7 +197,7 @@ export default function BookingPage() {
     <main className="min-h-screen bg-[#030405] text-white">
       <div className="mx-auto min-h-screen w-full max-w-[430px] border-x border-white/[0.06] bg-[#080A0C] pb-5 shadow-[0_0_80px_rgba(0,0,0,0.7)]">
         {step === 'success' && booking.staffMember && booking.service && booking.date && booking.time && barber ? (
-          <div className="p-3"><SuccessScreen clientName={booking.clientName} barbershopName={barber.barbershop_name} barbershopWhatsApp={booking.staffMember.whatsapp || barber.whatsapp} staffName={booking.staffMember.name} serviceName={booking.service.name} servicePrice={booking.service.price} serviceDuration={booking.service.duration_minutes} date={booking.date} time={booking.time} paymentMethod={booking.paymentMethod} pixPayload={pixPayload} onNewBooking={resetBooking} /></div>
+          <div className="p-3"><SuccessScreen clientName={booking.clientName} barbershopName={barber.barbershop_name} barbershopWhatsApp={booking.staffMember.whatsapp || barber.whatsapp} staffName={booking.staffMember.name} serviceName={booking.service.name} servicePrice={booking.service.price} serviceDuration={booking.service.duration_minutes} date={booking.date} time={booking.time} paymentMethod={booking.paymentMethod} pixPayload={pixPayload} calendarToken={booking.calendarToken} onNewBooking={resetBooking} /></div>
         ) : barber && (
           <>
             <BookingHeader barber={barber} openLabel={openStatus.isOpen ? openStatus.label : openStatus.nextLabel || openStatus.label} isOpen={openStatus.isOpen} />

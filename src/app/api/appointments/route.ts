@@ -1,4 +1,5 @@
 import { after, NextRequest, NextResponse } from 'next/server'
+import { randomBytes, createHash } from 'node:crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 import { createAppointmentSchema } from '@/lib/validations/appointment'
@@ -171,8 +172,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Agendamento nao retornado pelo banco.' }, { status: 500 })
     }
 
+    const calendarToken = randomBytes(32).toString('hex')
+    const { error: tokenError } = await supabase.from('appointment_calendar_tokens').insert({
+      appointment_id: createdAppointment.id,
+      token_hash: createHash('sha256').update(calendarToken).digest('hex'),
+    })
+    if (tokenError) {
+      console.error('[Appointments POST] Calendar token error:', tokenError)
+      return NextResponse.json({ error: 'Agendamento criado, mas nao foi possivel preparar o calendario.' }, { status: 500 })
+    }
+
     after(() => notifyNewAppointment({ ...createdAppointment, service }).catch((pushError) => console.error('[Appointments POST] Push failed:', pushError)))
-    return NextResponse.json({ appointment: createdAppointment }, { status: 201 })
+    return NextResponse.json({ appointment: createdAppointment, calendarToken }, { status: 201 })
   } catch (err) {
     console.error('[Appointments POST] Unexpected error:', err)
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
