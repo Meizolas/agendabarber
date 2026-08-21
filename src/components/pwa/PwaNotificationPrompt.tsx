@@ -20,14 +20,22 @@ export function PwaNotificationPrompt() {
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
-    setInstalled(window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone)))
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || ('standalone' in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone))
+    setInstalled(standalone)
     const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
     setStatus(!supported ? 'unsupported' : Notification.permission === 'granted' ? 'enabled' : Notification.permission === 'denied' ? 'denied' : 'ready')
+    if (supported && Notification.permission === 'granted') {
+      void navigator.serviceWorker.register('/sw.js', { scope: '/' }).then((registration) => registration.update()).catch(() => undefined)
+    }
     const capture = (event: Event) => { event.preventDefault(); setInstallPrompt(event as InstallPromptEvent) }
     const installedHandler = () => { setInstalled(true); setInstallPrompt(null) }
+    const serviceWorkerMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'AGEND_BARBER_DISPLAY_MODE') event.ports[0]?.postMessage({ standalone })
+    }
     window.addEventListener('beforeinstallprompt', capture)
     window.addEventListener('appinstalled', installedHandler)
-    return () => { window.removeEventListener('beforeinstallprompt', capture); window.removeEventListener('appinstalled', installedHandler) }
+    navigator.serviceWorker?.addEventListener('message', serviceWorkerMessage)
+    return () => { window.removeEventListener('beforeinstallprompt', capture); window.removeEventListener('appinstalled', installedHandler); navigator.serviceWorker?.removeEventListener('message', serviceWorkerMessage) }
   }, [])
 
   const install = async () => {

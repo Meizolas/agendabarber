@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/auth/session'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { Appointment } from '@/types'
+import { createHash, randomBytes } from 'node:crypto'
 
 const manualAppointmentSchema = z.object({
   staff_member_id: z.string().uuid(),
@@ -20,6 +21,7 @@ const appointmentErrors: Record<string, { message: string; status: number }> = {
   SLOT_CONFLICT: { message: 'Este horário já está ocupado. Escolha outro.', status: 409 },
   OUTSIDE_AVAILABILITY: { message: 'Horário fora do expediente configurado.', status: 400 },
   BLOCKED_TIME: { message: 'Este horário está bloqueado.', status: 409 },
+  LUNCH_BREAK: { message: 'Este horário coincide com o intervalo de almoço.', status: 409 },
   PAST_APPOINTMENT: { message: 'Escolha uma data e horário futuros.', status: 400 },
   INVALID_SERVICE: { message: 'Serviço indisponível.', status: 400 },
   INVALID_STAFF_MEMBER: { message: 'Profissional indisponível.', status: 400 },
@@ -69,7 +71,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ appointment: appointment as Appointment }, { status: 201 })
+    const createdAppointment = appointment as Appointment | null
+    if (!createdAppointment) return NextResponse.json({ error: 'Agendamento não retornado pelo banco.' }, { status: 500 })
+
+    const { data: customer, error: customerError } = await admin
+      .from('customers')
+      .upsert({ barber_id: barber.id, name: data.client_name, whatsapp: data.client_whatsapp, updated_at: new Date().toISOString() }, { onConflict: 'barber_id,whatsapp' })
+      .select('id')
+      .single()
+    if (customerError || !customer) {
+      console.error('[Manual appointment POST] Customer error:', customerError)
+      return NextResponse.json({ error: 'Agendamento criado, mas não foi possível cadastrar o cliente.' }, { status: 500 })
+    }
+
+    await admin.from('appointments').update({ customer_id: customer.id }).eq('id', createdAppointment.id).eq('barber_id', barber.id)
+    const calendarToken = randomBytes(32).toString('hex')
+    const { error: tokenError } = await admin.from('appointment_calendar_tokens').insert({
+      appointment_id: createdAppointment.id,
+      token_hash: createHash('sha256').update(calendarToken).digest('hex'),
+      public_token: calendarToken,
+    })
+    if (tokenError) console.error('[Manual appointment POST] Calendar token error:', tokenError)
+
+    return NextResponse.json({ appointment: createdAppointment, calendarToken: tokenError ? null : calendarToken }, { status: 201 })
   } catch (error) {
     console.error('[Manual appointment POST] Unexpected error:', error)
     return NextResponse.json({ error: 'Erro interno do servidor.' }, { status: 500 })

@@ -20,7 +20,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   const { data } = await admin
     .from('appointment_calendar_tokens')
     .select('expires_at, appointment:appointments(id, client_name, appointment_date, appointment_time, service:services(name, duration_minutes), staff_member:staff_members(name), barber:barbers(barbershop_name))')
-    .eq('token_hash', tokenHash)
+    .or(`token_hash.eq.${tokenHash},public_token.eq.${token}`)
     .maybeSingle()
 
   if (!data || (data.expires_at && new Date(data.expires_at) < new Date())) {
@@ -42,19 +42,30 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   const end = `${endDate.getUTCFullYear()}${pad(endDate.getUTCMonth() + 1)}${pad(endDate.getUTCDate())}T${pad(endDate.getUTCHours())}${pad(endDate.getUTCMinutes())}00`
   const summary = `${service.name} - ${barber.barbershop_name}`
   const description = `Agendamento de ${appointment.client_name}${staff?.name ? ` com ${staff.name}` : ''}`
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
   const calendar = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//AgendBarber//Calendario//PT-BR',
-    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
-    `UID:${appointment.id}@agendbarber`, `DTSTART;TZID=America/Sao_Paulo:${start.slice(0, 8)}T${start.slice(9)}`,
+    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:AgendBarber',
+    'X-WR-TIMEZONE:America/Sao_Paulo',
+    'BEGIN:VTIMEZONE', 'TZID:America/Sao_Paulo', 'X-LIC-LOCATION:America/Sao_Paulo',
+    'BEGIN:STANDARD', 'TZOFFSETFROM:-0300', 'TZOFFSETTO:-0300', 'TZNAME:-03',
+    'DTSTART:19700101T000000', 'END:STANDARD', 'END:VTIMEZONE',
+    'BEGIN:VEVENT', `UID:${appointment.id}@agendbarber`, `DTSTAMP:${stamp}`,
+    `DTSTART;TZID=America/Sao_Paulo:${start.slice(0, 8)}T${start.slice(9)}`,
     `DTEND;TZID=America/Sao_Paulo:${end.slice(0, 8)}T${end.slice(9)}`,
     `SUMMARY:${escapeIcal(summary)}`, `DESCRIPTION:${escapeIcal(description)}`,
-    'END:VEVENT', 'END:VCALENDAR',
+    'STATUS:CONFIRMED', 'TRANSP:OPAQUE',
+    'BEGIN:VALARM', 'TRIGGER:-PT30M', 'ACTION:DISPLAY',
+    `DESCRIPTION:${escapeIcal(`Lembrete: ${summary}`)}`, 'END:VALARM',
+    'END:VEVENT', 'END:VCALENDAR', '',
   ].join('\r\n')
 
   return new NextResponse(calendar, {
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': 'inline; filename="agendamento.ics"',
+      'Content-Language': 'pt-BR',
+      'X-Content-Type-Options': 'nosniff',
       'Cache-Control': 'private, no-store',
     },
   })

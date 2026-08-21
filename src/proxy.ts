@@ -63,12 +63,13 @@ export async function proxy(request: NextRequest) {
     '/redefinir-senha',
   ].includes(pathname)
   const isPublicBookingRoute = pathname.startsWith('/agendar')
-  const isLegacyClientRoute = pathname.startsWith('/cliente') || pathname === '/onboarding'
+  const isLegacyClientRoute = pathname === '/cliente' || pathname.startsWith('/cliente/') || pathname === '/onboarding'
   const isDashboardRoute = [
     '/dashboard',
     '/servicos',
     '/horarios',
     '/agendamentos',
+    '/clientes',
     '/perfil',
     '/equipe',
     '/assinatura',
@@ -76,6 +77,7 @@ export async function proxy(request: NextRequest) {
   const isSubscriptionRoute = pathname.startsWith('/assinatura')
   const isPaidAdminApi = [
     '/api/appointments',
+    '/api/customers',
     '/api/availability',
     '/api/blocked-times',
     '/api/profile',

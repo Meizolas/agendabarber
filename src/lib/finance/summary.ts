@@ -2,6 +2,7 @@ export interface FinancialAppointment {
   appointment_date: string
   status: 'confirmed' | 'cancelled' | 'completed'
   payment_status?: 'pending_confirmation' | 'paid'
+  payment_confirmed_at?: string | null
   service?: { price: number } | Array<{ price: number }> | null
 }
 
@@ -40,7 +41,17 @@ function servicePrice(appointment: FinancialAppointment) {
 }
 
 function isReceived(appointment: FinancialAppointment) {
-  return appointment.status === 'completed' && appointment.payment_status === 'paid'
+  return appointment.status !== 'cancelled' && appointment.payment_status === 'paid'
+}
+
+function receivedDate(appointment: FinancialAppointment) {
+  if (!appointment.payment_confirmed_at) return appointment.appointment_date
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(appointment.payment_confirmed_at))
 }
 
 export function calculateFinancialSummary({
@@ -55,9 +66,9 @@ export function calculateFinancialSummary({
   const { currentStart, nextStart, previousStart } = monthBounds(today)
   const received = appointments.filter(isReceived)
   const sum = (items: FinancialAppointment[]) => items.reduce((total, item) => total + servicePrice(item), 0)
-  const monthRevenue = sum(received.filter((item) => item.appointment_date >= currentStart && item.appointment_date < nextStart))
-  const previousMonthRevenue = sum(received.filter((item) => item.appointment_date >= previousStart && item.appointment_date < currentStart))
-  const todayRevenue = sum(received.filter((item) => item.appointment_date === today))
+  const monthRevenue = sum(received.filter((item) => receivedDate(item) >= currentStart && receivedDate(item) < nextStart))
+  const previousMonthRevenue = sum(received.filter((item) => receivedDate(item) >= previousStart && receivedDate(item) < currentStart))
+  const todayRevenue = sum(received.filter((item) => receivedDate(item) === today))
   const receivable = sum(pendingAppointments.filter((item) =>
     (item.status === 'confirmed' || item.status === 'completed')
     && item.payment_status !== 'paid',
@@ -69,7 +80,7 @@ export function calculateFinancialSummary({
     const date = addDateDays(today, index - 6)
     return {
       date,
-      amount: sum(received.filter((item) => item.appointment_date === date)),
+      amount: sum(received.filter((item) => receivedDate(item) === date)),
     }
   })
 

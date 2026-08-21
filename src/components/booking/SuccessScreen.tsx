@@ -5,8 +5,9 @@ import QRCode from 'qrcode'
 import { CalendarDays, Check, Clock3, Copy, MessageCircle, QrCode, Scissors, Tag, UserRound } from 'lucide-react'
 import { formatDate, formatDuration, formatPrice, formatTime, sanitizeWhatsApp } from '@/lib/utils/format'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 import type { AppointmentPaymentMethod } from '@/types'
-import { detectClientDevice, type ClientDevice } from '@/lib/utils/device'
+import { ConfirmationCalendarAction } from '@/components/booking/ConfirmationCalendarAction'
 
 interface SuccessScreenProps {
   clientName: string
@@ -40,8 +41,6 @@ export function SuccessScreen({
   onNewBooking,
 }: SuccessScreenProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState('')
-  const [device, setDevice] = useState<ClientDevice>('unknown')
-  useEffect(() => setDevice(detectClientDevice()), [])
   const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
   const calendarHref = calendarToken ? `${appUrl}/api/calendar/${calendarToken}` : null
   const googleDate = `${date.replace(/-/g, '')}T${formatTime(time).replace(':', '')}00`
@@ -51,9 +50,7 @@ export function SuccessScreen({
   const pad = (value: number) => String(value).padStart(2, '0')
   const googleEnd = `${googleEndDate.getUTCFullYear()}${pad(googleEndDate.getUTCMonth() + 1)}${pad(googleEndDate.getUTCDate())}T${pad(googleEndDate.getUTCHours())}${pad(googleEndDate.getUTCMinutes())}00`
   const googleHref = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`${serviceName} - ${barbershopName}`)}&dates=${googleDate}/${googleEnd}&ctz=America%2FSao_Paulo&details=${encodeURIComponent(`Agendamento de ${clientName}${staffName ? ` com ${staffName}` : ''}`)}`
-  const calendarIsIos = device === 'ios'
-  const calendarLabel = calendarIsIos ? 'Adicionar ao Calendário Apple' : 'Adicionar ao Google Agenda'
-  const selectedCalendarHref = calendarIsIos ? calendarHref : googleHref
+  const androidStartMillis = new Date(`${date}T${formatTime(time)}:00-03:00`).getTime()
   const whatsappHref = barbershopWhatsApp
     ? `https://wa.me/${sanitizeWhatsApp(barbershopWhatsApp)}?text=${encodeURIComponent(`Ola! Gostaria de falar sobre meu agendamento de ${serviceName}.`)}`
     : null
@@ -124,9 +121,13 @@ export function SuccessScreen({
           </div>
         )}
 
-        <a href={selectedCalendarHref ?? googleHref} target={calendarIsIos ? '_self' : '_blank'} rel={calendarIsIos ? undefined : 'noreferrer'} className="gold-action mt-5 flex w-full items-center justify-center gap-2 text-sm">
-          <CalendarDays className="h-[18px] w-[18px]" /> {calendarLabel}
-        </a>
+        <ConfirmationCalendarAction appleHref={calendarHref ?? googleHref} googleHref={googleHref} androidEvent={{ title: `${serviceName} - ${barbershopName}`, description: `Agendamento de ${clientName}${staffName ? ` com ${staffName}` : ''}`, startMillis: androidStartMillis, endMillis: androidStartMillis + serviceDuration * 60_000 }} />
+
+        {calendarToken && (
+          <Link href={`/agendamento/confirmado/${calendarToken}`} className="mt-3 block text-xs text-[#A6AAB1] underline underline-offset-4 hover:text-white">
+            Guardar link da confirmação para consultar depois
+          </Link>
+        )}
 
         {whatsappHref && (
           <a href={whatsappHref} target="_blank" rel="noreferrer" className="mt-3 flex h-[52px] w-full items-center justify-center gap-2 rounded-lg border border-[#F5C400] text-sm font-medium text-[#F5C400] transition hover:bg-[#F5C400]/10">

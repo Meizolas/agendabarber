@@ -13,6 +13,8 @@ export const availabilityRuleSchema = z
     end_time: z
       .string()
       .regex(/^\d{2}:\d{2}$/, 'Horário inválido (HH:MM)'),
+    lunch_start_time: z.string().regex(/^\d{2}:\d{2}$/, 'Início do almoço inválido').nullable().optional(),
+    lunch_end_time: z.string().regex(/^\d{2}:\d{2}$/, 'Fim do almoço inválido').nullable().optional(),
     interval_minutes: z.coerce
       .number()
       .int()
@@ -24,6 +26,8 @@ export const availabilityRuleSchema = z
     (data) => data.start_time < data.end_time,
     { message: 'Horário de início deve ser antes do horário de fim', path: ['end_time'] },
   )
+  .refine((data) => (!data.lunch_start_time && !data.lunch_end_time) || Boolean(data.lunch_start_time && data.lunch_end_time), { message: 'Informe o início e o fim do almoço', path: ['lunch_end_time'] })
+  .refine((data) => !data.lunch_start_time || !data.lunch_end_time || (data.lunch_start_time < data.lunch_end_time && data.lunch_start_time >= data.start_time && data.lunch_end_time <= data.end_time), { message: 'O almoço deve estar dentro do expediente', path: ['lunch_end_time'] })
 
 export const blockTimeSchema = z.object({
   blocked_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida'),

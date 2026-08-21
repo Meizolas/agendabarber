@@ -71,7 +71,7 @@ export default function HorariosPage() {
 
   useEffect(() => {
     if (!selectedRule) {
-      setDraft((current) => ({ ...current, start: '09:00', end: '18:00', interval: 30, active: false }))
+      setDraft((current) => ({ ...current, start: '09:00', end: '18:00', interval: 30, active: false, lunchStart: '', lunchEnd: '' }))
       return
     }
     setDraft((current) => ({
@@ -80,6 +80,8 @@ export default function HorariosPage() {
       end: formatTime(selectedRule.end_time),
       interval: selectedRule.interval_minutes,
       active: selectedRule.is_active,
+      lunchStart: selectedRule.lunch_start_time ? formatTime(selectedRule.lunch_start_time) : '',
+      lunchEnd: selectedRule.lunch_end_time ? formatTime(selectedRule.lunch_end_time) : '',
     }))
   }, [selectedRule])
 
@@ -223,6 +225,8 @@ export default function HorariosPage() {
       end_time: draft.end,
       interval_minutes: draft.interval,
       is_active: draft.active,
+      lunch_start_time: draft.lunchStart || null,
+      lunch_end_time: draft.lunchEnd || null,
     }
 
     if (demoMode) {

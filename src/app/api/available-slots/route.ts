@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { generateTimeSlots } from '@/lib/utils/slots'
+import { generateTimeSlots, timeToMinutes } from '@/lib/utils/slots'
 import { getDay } from 'date-fns'
 import { getBillingAccessByBarberId } from '@/lib/billing/access'
 
@@ -116,6 +116,17 @@ export async function GET(request: NextRequest) {
       blockedTimes,
     ).filter((slot) => !slots.includes(slot))
 
+    if (rule.lunch_start_time && rule.lunch_end_time) {
+      const lunchStart = timeToMinutes(rule.lunch_start_time.substring(0, 5))
+      const lunchEnd = timeToMinutes(rule.lunch_end_time.substring(0, 5))
+      const overlapsLunch = (slot: string) => {
+        const slotStart = timeToMinutes(slot)
+        return slotStart < lunchEnd && slotStart + service.duration_minutes > lunchStart
+      }
+      slots = slots.filter((slot) => !overlapsLunch(slot))
+      unavailableSlots = unavailableSlots.filter((slot) => !overlapsLunch(slot))
+    }
+
     const nowInSaoPaulo = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
@@ -134,7 +145,7 @@ export async function GET(request: NextRequest) {
       unavailableSlots = unavailableSlots.filter((slot) => slot > currentTime)
     }
 
-    return NextResponse.json({ slots, unavailableSlots })
+    return NextResponse.json({ slots, unavailableSlots }, { headers: { 'Cache-Control': 'no-store, max-age=0' } })
   } catch (err) {
     console.error('[Available Slots] Error:', err)
     return NextResponse.json({ error: 'Erro ao buscar horários' }, { status: 500 })

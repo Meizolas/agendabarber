@@ -3,13 +3,14 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { CalendarDays, Clock3, Home, SlidersHorizontal, UserRound } from 'lucide-react'
+import { CalendarDays, Clock3, Home, SlidersHorizontal, UserRound, Users } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Início' },
   { href: '/servicos', icon: SlidersHorizontal, label: 'Serviços' },
   { href: '/agendamentos', icon: CalendarDays, label: 'Agenda' },
+  { href: '/clientes', icon: Users, label: 'Clientes' },
   { href: '/horarios', icon: Clock3, label: 'Horários' },
   { href: '/perfil', icon: UserRound, label: 'Perfil' },
 ]
@@ -26,7 +27,7 @@ export function Sidebar() {
 
   return (
     <nav data-tour="bottom-navigation" className={cn(
-      'fixed left-1/2 z-50 grid -translate-x-1/2 grid-cols-5 bg-[#0B0D0F]/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl',
+      'fixed left-1/2 z-50 grid -translate-x-1/2 grid-cols-6 bg-[#0B0D0F]/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl',
       plansPage
         ? 'bottom-1 w-[calc(100%-12px)] max-w-[418px] rounded-[30px] border border-white/15 shadow-[0_-8px_30px_rgba(0,0,0,.65)]'
         : 'bottom-0 w-full max-w-[430px] border-x border-t border-white/10 shadow-[0_-12px_35px_rgba(0,0,0,0.5)]',

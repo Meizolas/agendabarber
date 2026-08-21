@@ -51,12 +51,12 @@ export default async function DashboardPage() {
     admin.from('appointments').select('*', { count: 'exact', head: true })
       .eq('barber_id', barber.id).gte('appointment_date', currentStart).neq('status', 'cancelled'),
     admin.from('appointments')
-      .select('appointment_date, status, payment_status, service:services(price)')
+      .select('appointment_date, status, payment_status, payment_confirmed_at, service:services(price)')
       .eq('barber_id', barber.id)
-      .gte('appointment_date', previousStart)
-      .lte('appointment_date', today),
+      .eq('payment_status', 'paid')
+      .neq('status', 'cancelled'),
     admin.from('appointments')
-      .select('appointment_date, status, payment_status, service:services(price)')
+      .select('appointment_date, status, payment_status, payment_confirmed_at, service:services(price)')
       .eq('barber_id', barber.id)
       .in('status', ['confirmed', 'completed'])
       .neq('payment_status', 'paid')

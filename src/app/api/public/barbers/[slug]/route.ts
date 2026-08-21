@@ -36,7 +36,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     { data: subscription },
   ] = await Promise.all([
     supabase.from('services').select('id, barber_id, name, price, duration_minutes, image_url, is_active, created_at, updated_at').eq('barber_id', barber.id).eq('is_active', true).order('created_at'),
-    supabase.from('availability_rules').select('id, barber_id, day_of_week, start_time, end_time, interval_minutes, is_active, created_at').eq('barber_id', barber.id).eq('is_active', true).order('day_of_week'),
+    supabase.from('availability_rules').select('id, barber_id, day_of_week, start_time, end_time, lunch_start_time, lunch_end_time, interval_minutes, is_active, created_at').eq('barber_id', barber.id).eq('is_active', true).order('day_of_week'),
     supabase.from('staff_members').select('id, barber_id, name, whatsapp, photo_url, is_owner, is_active, display_order, created_at, updated_at').eq('barber_id', barber.id).eq('is_active', true).order('display_order').order('created_at'),
     supabase.from('subscriptions').select('plan_code, staff_limit, status').eq('barber_id', barber.id).maybeSingle(),
   ])

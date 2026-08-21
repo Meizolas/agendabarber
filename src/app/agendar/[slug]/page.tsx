@@ -102,7 +102,7 @@ export default function BookingPage() {
     const loadSlots = async () => {
       setSlotsLoading(true)
       if (barber.id === 'demo') { setSlots(demoSlots.filter((slot) => !demoUnavailableSlots.includes(slot))); setUnavailableSlots(demoUnavailableSlots); setSlotsLoading(false); return }
-      const response = await fetch(`/api/available-slots?barber_id=${barber.id}&staff_member_id=${booking.staffMember!.id}&date=${booking.date}&service_id=${booking.service!.id}`)
+      const response = await fetch(`/api/available-slots?barber_id=${barber.id}&staff_member_id=${booking.staffMember!.id}&date=${booking.date}&service_id=${booking.service!.id}`, { cache: 'no-store' })
       const data = await response.json().catch(() => null)
       setSlots(data?.slots ?? [])
       setUnavailableSlots(data?.unavailableSlots ?? [])

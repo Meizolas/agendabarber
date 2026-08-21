@@ -1,6 +1,9 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import type { Appointment } from '@/types'
-import { formatPrice, formatTime, sanitizeWhatsApp } from '@/lib/utils/format'
-import { Check, CircleDollarSign, MessageCircle, MoreVertical, X } from 'lucide-react'
+import { formatDate, formatPrice, formatTime, sanitizeWhatsApp } from '@/lib/utils/format'
+import { Check, CircleDollarSign, Copy, MessageCircle, MoreVertical, X } from 'lucide-react'
 
 interface AppointmentCardProps {
   appointment: Appointment
@@ -16,8 +19,22 @@ const statusStyle = {
 }
 
 export function AppointmentCard({ appointment, onAction, onPaymentConfirm, paymentLoading }: AppointmentCardProps) {
+  const [reminderCopied, setReminderCopied] = useState(false)
+  const [appOrigin, setAppOrigin] = useState('')
+  useEffect(() => setAppOrigin(window.location.origin), [])
   const style = statusStyle[appointment.status]
   const whatsapp = `https://wa.me/${sanitizeWhatsApp(appointment.client_whatsapp)}`
+  const calendarToken = Array.isArray(appointment.calendar_token) ? appointment.calendar_token[0]?.public_token : appointment.calendar_token?.public_token
+  const confirmationUrl = calendarToken && appOrigin ? `${appOrigin}/agendamento/confirmado/${calendarToken}` : null
+  const reminderMessage = `Olá, ${appointment.client_name}! Lembrando do seu agendamento no dia ${formatDate(appointment.appointment_date)}, às ${formatTime(appointment.appointment_time)}.${appointment.service?.name ? ` Serviço: ${appointment.service.name}.` : ''}${appointment.staff_member?.name ? ` Profissional: ${appointment.staff_member.name}.` : ''}${confirmationUrl ? ` Consulte os detalhes e adicione ao calendário: ${confirmationUrl}` : ''}`
+  const reminderWhatsapp = `${whatsapp}?text=${encodeURIComponent(reminderMessage)}`
+  const copyReminder = async () => {
+    try {
+      await navigator.clipboard.writeText(reminderMessage)
+      setReminderCopied(true)
+      window.setTimeout(() => setReminderCopied(false), 2000)
+    } catch { setReminderCopied(false) }
+  }
   const paymentPending = appointment.payment_status !== 'paid'
   const paymentLabel = appointment.payment_status === 'paid'
     ? 'Pagamento confirmado'
@@ -65,6 +82,10 @@ export function AppointmentCard({ appointment, onAction, onPaymentConfirm, payme
             Confirmar pagamento
           </button>
         )}
+        {appointment.status === 'confirmed' && <div className="mt-2 flex flex-wrap gap-2">
+          <a href={reminderWhatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-[#22C55E]/60 px-2.5 text-[10px] font-semibold text-[#65D787] transition hover:bg-[#22C55E]/10"><MessageCircle className="h-3.5 w-3.5" /> Enviar lembrete</a>
+          <button type="button" onClick={copyReminder} className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-md border border-white/15 px-2.5 text-[10px] font-semibold text-[#A2A6AD] transition hover:border-[#F5C400]/60 hover:text-[#F5C400]">{reminderCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}{reminderCopied ? 'Copiado' : 'Copiar texto'}</button>
+        </div>}
       </div>
     </article>
   )

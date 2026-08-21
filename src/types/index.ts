@@ -48,6 +48,8 @@ export interface AvailabilityRule {
   start_time: string
   end_time: string
   interval_minutes: number
+  lunch_start_time?: string | null
+  lunch_end_time?: string | null
   is_active: boolean
   created_at: string
 }
@@ -80,6 +82,7 @@ export interface Appointment {
   service?: Service
   barber?: Barber
   staff_member?: StaffMember
+  calendar_token?: { public_token: string } | Array<{ public_token: string }> | null
 }
 
 export interface WhatsAppLog {

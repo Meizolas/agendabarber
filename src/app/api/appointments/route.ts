@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     let query = adminClient
       .from('appointments')
-      .select('*, service:services(*), staff_member:staff_members(*)')
+      .select('*, service:services(*), staff_member:staff_members(*), calendar_token:appointment_calendar_tokens(public_token)')
       .eq('barber_id', barber.id)
       .order('appointment_date', { ascending: true })
       .order('appointment_time', { ascending: true })
@@ -156,6 +156,7 @@ export async function POST(request: NextRequest) {
         SLOT_CONFLICT: { message: 'Este horario ja esta ocupado. Escolha outro.', status: 409 },
         OUTSIDE_AVAILABILITY: { message: 'Horario fora do expediente.', status: 400 },
         BLOCKED_TIME: { message: 'Este horario esta bloqueado.', status: 409 },
+        LUNCH_BREAK: { message: 'Este horário coincide com o intervalo de almoço.', status: 409 },
         PAST_APPOINTMENT: { message: 'Escolha uma data e horario futuros.', status: 400 },
         INVALID_SERVICE: { message: 'Servico indisponivel.', status: 400 },
         INVALID_STAFF_MEMBER: { message: 'Profissional indisponível.', status: 400 },
@@ -172,10 +173,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Agendamento nao retornado pelo banco.' }, { status: 500 })
     }
 
+    const normalizedWhatsApp = data.client_whatsapp.replace(/\D/g, '')
+    const { data: customer, error: customerError } = await supabase
+      .from('customers')
+      .upsert({ barber_id: barber.id, name: data.client_name.trim(), whatsapp: normalizedWhatsApp, updated_at: new Date().toISOString() }, { onConflict: 'barber_id,whatsapp' })
+      .select('id')
+      .single()
+    if (customerError || !customer) {
+      console.error('[Appointments POST] Customer error:', customerError)
+      return NextResponse.json({ error: 'Agendamento criado, mas nao foi possivel salvar o cadastro do cliente.' }, { status: 500 })
+    }
+    const { error: appointmentCustomerError } = await supabase.from('appointments').update({ customer_id: customer.id }).eq('id', createdAppointment.id)
+    if (appointmentCustomerError) {
+      console.error('[Appointments POST] Customer link error:', appointmentCustomerError)
+      return NextResponse.json({ error: 'Agendamento criado, mas nao foi possivel vincular o cliente.' }, { status: 500 })
+    }
+
     const calendarToken = randomBytes(32).toString('hex')
     const { error: tokenError } = await supabase.from('appointment_calendar_tokens').insert({
       appointment_id: createdAppointment.id,
       token_hash: createHash('sha256').update(calendarToken).digest('hex'),
+      public_token: calendarToken,
     })
     if (tokenError) {
       console.error('[Appointments POST] Calendar token error:', tokenError)

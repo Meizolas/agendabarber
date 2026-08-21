@@ -143,16 +143,24 @@ function Overview({ counts, todayAppointmentTimes }: Pick<DashboardInsightsProps
 }
 
 function Finance({ summary, goalAmount, onOpenGoals }: { summary: FinancialSummary; goalAmount: number | null; onOpenGoals: () => void }) {
+  const [period, setPeriod] = useState<'today' | 'month'>('month')
   const comparison = summary.comparisonPercent
   const goal = getGoalProgress(summary.monthRevenue, goalAmount)
+  const displayedRevenue = period === 'today' ? summary.todayRevenue : summary.monthRevenue
 
   return (
     <div className="space-y-3">
+      <div className="grid grid-cols-2 rounded-lg border border-white/10 bg-[#101214] p-1">
+        <button type="button" onClick={() => setPeriod('today')} className={`rounded-md py-2 text-[10px] font-medium transition ${period === 'today' ? 'bg-[#F5C400] text-black' : 'text-[#858A93]'}`}>Hoje</button>
+        <button type="button" onClick={() => setPeriod('month')} className={`rounded-md py-2 text-[10px] font-medium transition ${period === 'month' ? 'bg-[#F5C400] text-black' : 'text-[#858A93]'}`}>Este mês</button>
+      </div>
       <section className="dashboard-card relative overflow-hidden p-4">
         <div className="absolute -right-5 -top-5 grid h-24 w-24 place-items-center rounded-full border border-white/[0.07] text-[#F5C400]"><TrendingUp className="h-9 w-9" /></div>
-        <p className="text-xs text-[#A2A6AD]">Receita do mês</p>
-        <p className="mt-1 text-[26px] font-semibold leading-tight text-white">{formatPrice(summary.monthRevenue)}</p>
-        {comparison === null ? (
+        <p className="text-xs text-[#A2A6AD]">{period === 'today' ? 'Receita de hoje' : 'Receita do mês'}</p>
+        <p className="mt-1 text-[26px] font-semibold leading-tight text-white">{formatPrice(displayedRevenue)}</p>
+        {period === 'today' ? (
+          <p className="mt-2 text-[10px] text-[#737881]">Pagamentos confirmados hoje</p>
+        ) : comparison === null ? (
           <p className="mt-2 text-[10px] text-[#737881]">Sem histórico suficiente no mês anterior</p>
         ) : comparison >= 0 ? (
           <p className="mt-2 flex items-center gap-1 text-[10px] font-medium text-[#52D982]"><TrendingUp className="h-3.5 w-3.5" /> +{comparison.toFixed(1)}% vs. mês anterior</p>
@@ -188,7 +196,7 @@ function Finance({ summary, goalAmount, onOpenGoals }: { summary: FinancialSumma
       </section>
 
       {summary.monthRevenue === 0 && (
-        <p className="px-2 text-center text-[10px] leading-relaxed text-[#737881]">Os valores serão atualizados quando atendimentos pagos forem concluídos.</p>
+        <p className="px-2 text-center text-[10px] leading-relaxed text-[#737881]">Os valores serão atualizados quando os pagamentos forem confirmados.</p>
       )}
     </div>
   )
