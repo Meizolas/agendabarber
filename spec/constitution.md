@@ -357,6 +357,15 @@ Depois da implementação:
 5. Para integrações, testar configuração ausente, timeout, erro externo e registro de falha.
 6. Registrar aqui arquivos alterados, migration aplicada, variáveis novas e pendências conhecidas.
 
+### 13.1 Versionamento e entrega
+
+- Quando o solicitante pedir para fazer um `commit`, a entrega padrão inclui: revisar o diff, executar `git add`, criar o commit e executar `git push` para o upstream da branch atual.
+- Se o push falhar por autenticação, conflito, ausência de upstream ou bloqueio externo, informar o erro exato e não considerar a entrega concluída até receber orientação ou resolver o problema.
+- Mensagens de commit devem seguir Conventional Commits, em português ou inglês conforme o contexto: `tipo(escopo opcional): descrição curta`.
+- Tipos preferenciais: `feat` para funcionalidade, `fix` para correção, `perf` para desempenho, `security` para segurança, `refactor` para reorganização, `docs` para documentação, `test` para testes, `chore` para manutenção e `build` para configuração/build.
+- A descrição deve ser objetiva, no infinitivo ou em forma verbal consistente, sem ponto final. Exemplos: `feat(customers): permite selecionar cliente no agendamento` e `fix(appointments): evita conflito ao remarcar horário`.
+- O nome da branch e o upstream devem ser verificados antes do push; nunca fazer push forçado sem autorização explícita.
+
 ## 14. Registro desta auditoria
 
 ### Alterações realizadas nesta tarefa
