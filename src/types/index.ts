@@ -28,6 +28,16 @@ export interface Service {
   updated_at: string
 }
 
+export interface Customer {
+  id: string
+  barber_id: string
+  name: string
+  whatsapp: string
+  notes?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
 export interface StaffMember {
   id: string
   barber_id: string

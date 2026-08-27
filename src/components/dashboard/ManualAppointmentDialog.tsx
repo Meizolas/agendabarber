@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarPlus, Clock3, Loader2, UserRound } from 'lucide-react'
-import type { Barber, Service, StaffMember } from '@/types'
+import type { Barber, Customer, Service, StaffMember } from '@/types'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/use-toast'
 import { getSaoPauloDate } from '@/lib/utils/timezone'
@@ -26,6 +26,9 @@ export function ManualAppointmentDialog({
 }: ManualAppointmentDialogProps) {
   const [services, setServices] = useState<Service[]>([])
   const [staff, setStaff] = useState<StaffMember[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [customerSearch, setCustomerSearch] = useState('')
+  const [loadingCustomers, setLoadingCustomers] = useState(false)
   const [clientName, setClientName] = useState('')
   const [clientWhatsapp, setClientWhatsapp] = useState('')
   const [serviceId, setServiceId] = useState('')
@@ -37,30 +40,86 @@ export function ManualAppointmentDialog({
   const [loadingData, setLoadingData] = useState(false)
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const dataCacheRef = useRef<{ expiresAt: number; services: Service[]; staff: StaffMember[]; customers: Customer[] } | null>(null)
+  const customerSearchCacheRef = useRef(new Map<string, Customer[]>())
   const { toast } = useToast()
 
   useEffect(() => {
     if (!open) return
     setDate(initialDate < getSaoPauloDate() ? getSaoPauloDate() : initialDate)
     setTime('')
+    const cached = dataCacheRef.current
+    if (cached && cached.expiresAt > Date.now()) {
+      setServices(cached.services)
+      setStaff(cached.staff)
+      setCustomers(cached.customers)
+      setServiceId((current) => cached.services.some((service) => service.id === current) ? current : cached.services[0]?.id ?? '')
+      setStaffMemberId((current) => cached.staff.some((member) => member.id === current) ? current : cached.staff[0]?.id ?? '')
+      return
+    }
     setLoadingData(true)
-    Promise.all([fetch('/api/services'), fetch('/api/staff')])
-      .then(async ([servicesResponse, staffResponse]) => {
-        const [servicesPayload, staffPayload] = await Promise.all([
+    Promise.all([fetch('/api/services'), fetch('/api/staff'), fetch('/api/customers?mode=lookup')])
+      .then(async ([servicesResponse, staffResponse, customersResponse]) => {
+        const [servicesPayload, staffPayload, customersPayload] = await Promise.all([
           servicesResponse.json().catch(() => null),
           staffResponse.json().catch(() => null),
+          customersResponse.json().catch(() => null),
         ])
-        if (!servicesResponse.ok || !staffResponse.ok) throw new Error('Não foi possível carregar os dados.')
+        if (!servicesResponse.ok || !staffResponse.ok || !customersResponse.ok) throw new Error('Não foi possível carregar os dados.')
         const activeServices = (servicesPayload?.services ?? []).filter((service: Service) => service.is_active)
         const activeStaff = (staffPayload?.staff ?? []).filter((member: StaffMember) => member.is_active)
         setServices(activeServices)
         setStaff(activeStaff)
+        setCustomers(customersPayload?.customers ?? [])
+        customerSearchCacheRef.current.set('', customersPayload?.customers ?? [])
+        dataCacheRef.current = {
+          expiresAt: Date.now() + 30_000,
+          services: activeServices,
+          staff: activeStaff,
+          customers: customersPayload?.customers ?? [],
+        }
         setServiceId((current) => activeServices.some((service: Service) => service.id === current) ? current : activeServices[0]?.id ?? '')
         setStaffMemberId((current) => activeStaff.some((member: StaffMember) => member.id === current) ? current : activeStaff[0]?.id ?? '')
       })
       .catch((error) => toast({ title: 'Erro ao abrir agenda', description: error.message, variant: 'destructive' }))
       .finally(() => setLoadingData(false))
   }, [initialDate, open, toast])
+
+  useEffect(() => {
+    if (!open || customerSearch.trim().length < 2) return
+    const query = customerSearch.trim().toLocaleLowerCase()
+    const hasLocalMatch = customers.some((customer) => `${customer.name} ${customer.whatsapp}`.toLocaleLowerCase().includes(query))
+    if (hasLocalMatch) return
+
+    const cachedCustomers = customerSearchCacheRef.current.get(query)
+    if (cachedCustomers) {
+      setCustomers(cachedCustomers)
+      return
+    }
+
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      setLoadingCustomers(true)
+      fetch(`/api/customers?mode=lookup&search=${encodeURIComponent(customerSearch.trim())}`, { signal: controller.signal })
+        .then(async (response) => {
+          const payload = await response.json().catch(() => null)
+          if (!response.ok) throw new Error(payload?.error ?? 'Não foi possível buscar clientes.')
+          const nextCustomers = payload?.customers ?? []
+          customerSearchCacheRef.current.set(query, nextCustomers)
+          setCustomers(nextCustomers)
+        })
+        .catch((error) => {
+          if (error.name !== 'AbortError') toast({ title: 'Erro ao buscar cliente', description: error.message, variant: 'destructive' })
+        })
+        .finally(() => setLoadingCustomers(false))
+    }, 180)
+    return () => { window.clearTimeout(timer); controller.abort() }
+  }, [customerSearch, customers, open, toast])
+
+  const visibleCustomers = useMemo(() => {
+    const query = customerSearch.trim().toLocaleLowerCase()
+    return (query ? customers.filter((customer) => `${customer.name} ${customer.whatsapp}`.toLocaleLowerCase().includes(query)) : customers).slice(0, 8)
+  }, [customerSearch, customers])
 
   useEffect(() => {
     if (!open || !barber?.id || !date || !serviceId || !staffMemberId) {
@@ -126,6 +185,7 @@ export function ManualAppointmentDialog({
     toast({ title: 'Agendamento adicionado', description: 'O horário já está indisponível no link compartilhado.' })
     setClientName('')
     setClientWhatsapp('')
+    setCustomerSearch('')
     setNotes('')
     setTime('')
     setSubmitting(false)
@@ -154,8 +214,20 @@ export function ManualAppointmentDialog({
               <label className="text-[11px] font-medium text-[#B8BDC5]">Cliente</label>
               <div className="relative">
                 <UserRound className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-[#737881]" />
-                <input className={`${fieldClass} pl-9`} value={clientName} onChange={(event) => setClientName(event.target.value)} placeholder="Nome do cliente" maxLength={100} autoFocus />
+                <input className={`${fieldClass} pl-9`} value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Buscar cliente por nome ou WhatsApp" maxLength={100} autoFocus />
+                {(loadingCustomers || visibleCustomers.length > 0) && (
+                  <div className="absolute inset-x-0 top-12 z-30 overflow-hidden rounded-lg border border-white/10 bg-[#17191C] shadow-2xl">
+                    {loadingCustomers ? <div className="px-3 py-3 text-xs text-[#858A93]">Buscando clientes...</div> : visibleCustomers.map((customer) => (
+                      <button key={customer.id} type="button" onClick={() => { setClientName(customer.name); setClientWhatsapp(customer.whatsapp); setCustomerSearch(customer.name) }} className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-white/5">
+                        <span className="truncate text-xs font-medium text-white">{customer.name}</span>
+                        <span className="shrink-0 text-[10px] text-[#858A93]">{customer.whatsapp}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+              <p className="text-[10px] text-[#737881]">Selecione um contato existente ou preencha um novo cliente.</p>
+              <input className={fieldClass} value={clientName} onChange={(event) => setClientName(event.target.value)} placeholder="Nome do cliente" maxLength={100} />
               <input className={fieldClass} type="tel" inputMode="tel" value={clientWhatsapp} onChange={(event) => setClientWhatsapp(event.target.value)} placeholder="WhatsApp com DDD" />
             </div>
 

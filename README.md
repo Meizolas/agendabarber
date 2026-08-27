@@ -45,6 +45,7 @@ SUPABASE_SERVICE_ROLE_KEY=sua-chave-service-role
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+APP_API_KEY=
 
 # Recuperacao de senha (Resend)
 RESEND_API_KEY=re_xxxxxxxxx
@@ -63,6 +64,7 @@ Importante:
 - A chave `SUPABASE_SERVICE_ROLE_KEY` tem permissao alta no Supabase.
 - O `.gitignore` ja ignora arquivos `.env`, `.env.local` e `.env*.local`.
 - Os valores dos planos ficam no codigo em `src/lib/billing/plans.ts`, nao em variavel de ambiente.
+- Em producao, configure `APP_API_KEY` no ambiente do servidor. Ela nao deve ser prefixada com `NEXT_PUBLIC_` nem exposta no navegador.
 
 ## Configuracao do Supabase
 
