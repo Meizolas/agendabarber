@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { AvailabilityRule, Barber, BlockedTime } from '@/types'
 import { AvailabilityForm } from '@/components/schedule/AvailabilityForm'
 import { BlockTimeForm } from '@/components/schedule/BlockTimeForm'
+import { FreezeDayControl } from '@/components/schedule/FreezeDayControl'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { Header } from '@/components/dashboard/Header'
 import { Button } from '@/components/ui/button'
@@ -12,7 +13,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { PageLoading } from '@/components/shared/LoadingSpinner'
 import { Plus, Trash2, Ban, Clock3 } from 'lucide-react'
 import { formatDateShort, formatTime } from '@/lib/utils/format'
-import type { AvailabilityRuleInput, BlockTimeInput } from '@/lib/validations/availability'
+import type { AvailabilityRuleInput, BlockTimesBatchInput } from '@/lib/validations/availability'
 import { demoBarber, demoRules } from '@/lib/demo-data'
 import { DEMO_STORAGE_KEY } from '@/lib/demo-session'
 
@@ -130,23 +131,23 @@ export default function HorariosPage() {
     setFormLoading(false)
   }
 
-  const handleAddBlock = async (data: BlockTimeInput) => {
+  const handleAddBlock = async (data: BlockTimesBatchInput) => {
     if (!barber) return
     setFormLoading(true)
 
     if (demoMode) {
       setBlockedTimes((current) => [
         ...current,
-        {
-          id: `demo-block-${Date.now()}`,
+        ...data.blocked_times.map((time, index) => ({
+          id: `demo-block-${Date.now()}-${index}`,
           barber_id: barber.id,
           blocked_date: data.blocked_date,
-          blocked_time: data.blocked_time || null,
+          blocked_time: time,
           reason: data.reason || null,
           created_at: new Date().toISOString(),
-        },
+        })),
       ])
-      toast({ title: 'Horário demo bloqueado!' })
+      toast({ title: `${data.blocked_times.length} horário${data.blocked_times.length === 1 ? '' : 's'} bloqueado${data.blocked_times.length === 1 ? '' : 's'}!` })
       setBlockFormOpen(false)
       setFormLoading(false)
       return
@@ -157,7 +158,7 @@ export default function HorariosPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
       blocked_date: data.blocked_date,
-      blocked_time: data.blocked_time || null,
+      blocked_times: data.blocked_times,
       reason: data.reason || null,
       }),
     })
@@ -165,7 +166,7 @@ export default function HorariosPage() {
     if (!response.ok) {
       toast({ title: 'Erro', description: result.error ?? 'Nao foi possivel salvar.', variant: 'destructive' })
     } else {
-      toast({ title: 'Horário bloqueado!' })
+      toast({ title: `${data.blocked_times.length} horário${data.blocked_times.length === 1 ? '' : 's'} bloqueado${data.blocked_times.length === 1 ? '' : 's'}!` })
       setBlockFormOpen(false)
       loadData()
     }
@@ -192,24 +193,29 @@ export default function HorariosPage() {
     }
   }
 
-  const handleDeleteBlock = async () => {
-    if (!deleteBlockId) return
+  const deleteBlock = async (blockId: string) => {
     if (demoMode) {
-      setBlockedTimes((current) => current.filter((block) => block.id !== deleteBlockId))
+      setBlockedTimes((current) => current.filter((block) => block.id !== blockId))
       toast({ title: 'Bloqueio demo removido!' })
-      setDeleteBlockId(null)
-      return
+      return true
     }
 
-    const response = await fetch(`/api/blocked-times?id=${deleteBlockId}`, { method: 'DELETE' })
+    const response = await fetch(`/api/blocked-times?id=${blockId}`, { method: 'DELETE' })
     const result = await response.json()
     if (!response.ok) {
       toast({ title: 'Erro', description: result.error ?? 'Nao foi possivel remover.', variant: 'destructive' })
+      return false
     } else {
-      toast({ title: 'Bloqueio removido!' })
-      setDeleteBlockId(null)
-      loadData()
+      toast({ title: 'Horário desbloqueado!' })
+      await loadData()
+      return true
     }
+  }
+
+  const handleDeleteBlock = async () => {
+    if (!deleteBlockId) return
+    const removed = await deleteBlock(deleteBlockId)
+    if (removed) setDeleteBlockId(null)
   }
 
   const handleSaveSelectedRule = async () => {
@@ -253,11 +259,16 @@ export default function HorariosPage() {
   if (loading) return <PageLoading />
 
   const existingDays = rules.map((r) => r.day_of_week)
+  const blockedByDate = blockedTimes.reduce<Record<string, BlockedTime[]>>((groups, block) => {
+    groups[block.blocked_date] = [...(groups[block.blocked_date] ?? []), block]
+    return groups
+  }, {})
 
   return (
     <>
       <Header barber={barber} title="Horários de atendimento" />
       <div data-tour="hours-main" className="flex-1 space-y-4 px-4 pb-5">
+        <FreezeDayControl onChanged={() => void loadData()} disabled={demoMode} refreshKey={blockedTimes.map((block) => block.id).join(',')} />
         <div className="grid grid-cols-7 gap-1.5">
           {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map((label, day) => (
             <button key={label} type="button" onClick={() => setSelectedDay(day)} className={`aspect-square rounded-full text-[9px] font-medium transition ${selectedDay === day ? 'bg-[#F5C400] text-black' : 'border border-white/10 bg-[#15181B] text-[#858A93]'}`}>{label}</button>
@@ -299,10 +310,18 @@ export default function HorariosPage() {
             <h2 className="flex items-center gap-2 text-xs font-medium text-white"><Ban className="h-4 w-4 text-[#F5C400]" /> Horários bloqueados</h2>
             <Button variant="ghost" size="sm" className="h-8 gap-1 text-[10px] text-[#F5C400]" onClick={() => setBlockFormOpen(true)}><Plus className="h-3.5 w-3.5" /> Bloquear</Button>
           </div>
-          {blockedTimes.length === 0 ? <p className="dashboard-card px-3 py-4 text-center text-[11px] text-[#737881]">Nenhum horário bloqueado</p> : blockedTimes.map((bt) => (
-            <div key={bt.id} className="dashboard-card mb-2 flex items-center justify-between px-3 py-2.5 text-xs">
-              <span><strong>{formatDateShort(bt.blocked_date)}</strong>{bt.blocked_time ? ` às ${formatTime(bt.blocked_time)}` : ' — dia inteiro'}</span>
-              <button onClick={() => setDeleteBlockId(bt.id)} className="text-[#F87171]"><Trash2 className="h-4 w-4" /></button>
+          {blockedTimes.length === 0 ? <p className="dashboard-card px-3 py-4 text-center text-[11px] text-[#737881]">Nenhum horário bloqueado</p> : Object.entries(blockedByDate).map(([date, blocks]) => (
+            <div key={date} className="dashboard-card mb-2 p-3">
+              <p className="mb-2 text-xs font-semibold text-white">{formatDateShort(date)}</p>
+              <div className="flex flex-wrap gap-2">
+                {blocks.map((block) => (
+                  <span key={block.id} className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-2.5 text-[10px] ${block.blocked_time ? 'bg-[#F5C400]/10 text-[#F5C400]' : 'bg-sky-400/10 text-sky-200'}`}>
+                    {block.blocked_time ? formatTime(block.blocked_time) : 'Dia inteiro'}
+                    <button type="button" aria-label={`Liberar ${block.blocked_time ? formatTime(block.blocked_time) : 'dia inteiro'} de ${formatDateShort(date)}`} onClick={() => setDeleteBlockId(block.id)} className="text-[#F87171]"><Trash2 className="h-3 w-3" /></button>
+                  </span>
+                ))}
+              </div>
+              {blocks.some((block) => block.reason) && <p className="mt-2 text-[10px] text-[#858A93]">{blocks.find((block) => block.reason)?.reason}</p>}
             </div>
           ))}
         </section>
@@ -320,7 +339,10 @@ export default function HorariosPage() {
         open={blockFormOpen}
         onOpenChange={setBlockFormOpen}
         onSubmit={handleAddBlock}
+        onUnblock={(block) => deleteBlock(block.id)}
         loading={formLoading}
+        rules={rules}
+        blockedTimes={blockedTimes}
       />
 
       <ConfirmDialog

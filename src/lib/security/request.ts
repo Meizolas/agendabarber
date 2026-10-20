@@ -41,6 +41,8 @@ export function isOfficialOrigin(request: NextRequest) {
   }
   try {
     const originUrl = new URL(origin)
+    // next dev pode usar localhost mesmo com a URL pública de produção no .env.
+    if (process.env.NODE_ENV === 'development' && originUrl.origin === request.nextUrl.origin) return true
     return expectedOrigin ? originUrl.origin === expectedOrigin : originUrl.host === request.nextUrl.host
   } catch { return false }
 }

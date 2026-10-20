@@ -35,6 +35,7 @@ export function ServiceForm({ open, onOpenChange, onSubmit, service, loading }: 
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<ServiceInput>({ resolver: zodResolver(serviceSchema) })
 
   useEffect(() => {
@@ -54,17 +55,23 @@ export function ServiceForm({ open, onOpenChange, onSubmit, service, loading }: 
     setImageFile(null)
   }, [service, open, reset])
 
+  useEffect(() => {
+    return () => { if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl) }
+  }, [previewUrl])
+
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
     setImageFile(file)
     setPreviewUrl(URL.createObjectURL(file))
+    event.target.value = ''
   }
 
   const clearSelectedImage = () => {
     setImageFile(null)
-    setPreviewUrl(service?.image_url ?? null)
+    setPreviewUrl(null)
+    setValue('image_url', '', { shouldDirty: true, shouldValidate: true })
   }
 
   return (
@@ -84,17 +91,19 @@ export function ServiceForm({ open, onOpenChange, onSubmit, service, loading }: 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="service-image">Imagem do servico</Label>
+            <Label htmlFor="service-image">Foto do serviço <span className="font-normal text-[#9CA3AF]">(opcional)</span></Label>
+            <p className="text-xs text-[#9CA3AF]">Você pode cadastrar o serviço sem foto ou adicioná-la depois.</p>
             <div className="overflow-hidden rounded-lg border border-white/10 bg-[#101214]">
               {previewUrl ? (
                 <div className="relative">
                   <img src={previewUrl} alt="Preview do servico" className="h-40 w-full object-cover" />
-                  {imageFile && (
+                  {previewUrl && (
                     <button
                       type="button"
                       onClick={clearSelectedImage}
+                      disabled={loading}
                       className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-black/70 text-white"
-                      aria-label="Remover imagem selecionada"
+                      aria-label="Remover foto do serviço"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -104,7 +113,7 @@ export function ServiceForm({ open, onOpenChange, onSubmit, service, loading }: 
                 <div className="grid h-36 place-items-center text-[#9CA3AF]">
                   <div className="flex flex-col items-center gap-2 text-sm">
                     <ImageIcon className="h-7 w-7 text-[#F4B400]" />
-                    <span>Nenhuma imagem selecionada</span>
+                    <span>Serviço sem foto</span>
                   </div>
                 </div>
               )}
@@ -122,8 +131,10 @@ export function ServiceForm({ open, onOpenChange, onSubmit, service, loading }: 
                 accept="image/*"
                 className="hidden"
                 onChange={handleImageChange}
+                disabled={loading}
               />
             </div>
+            {errors.image_url && <p role="alert" className="text-sm text-red-500">{errors.image_url.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

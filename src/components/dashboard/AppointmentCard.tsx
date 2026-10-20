@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import type { Appointment } from '@/types'
 import { formatDate, formatPrice, formatTime, sanitizeWhatsApp } from '@/lib/utils/format'
 import { Check, CircleDollarSign, Copy, MessageCircle, MoreVertical, X } from 'lucide-react'
+import { isSpecialAppointment } from '@/lib/appointments/special'
+import { SpecialAppointmentBadge } from '@/components/dashboard/SpecialAppointmentBadge'
 
 interface AppointmentCardProps {
   appointment: Appointment
@@ -23,6 +25,7 @@ export function AppointmentCard({ appointment, onAction, onPaymentConfirm, payme
   const [appOrigin, setAppOrigin] = useState('')
   useEffect(() => setAppOrigin(window.location.origin), [])
   const style = statusStyle[appointment.status]
+  const special = isSpecialAppointment(appointment)
   const whatsapp = `https://wa.me/${sanitizeWhatsApp(appointment.client_whatsapp)}`
   const calendarToken = Array.isArray(appointment.calendar_token) ? appointment.calendar_token[0]?.public_token : appointment.calendar_token?.public_token
   const confirmationUrl = calendarToken && appOrigin ? `${appOrigin}/agendamento/confirmado/${calendarToken}` : null
@@ -43,13 +46,14 @@ export function AppointmentCard({ appointment, onAction, onPaymentConfirm, payme
       : 'Pagar na barbearia'
 
   return (
-    <article className={`dashboard-card flex min-h-[76px] overflow-visible border-l-2 ${style.border}`}>
+    <article className={`dashboard-card flex min-h-[76px] overflow-visible border-l-2 ${style.border} ${special ? `special-appointment ${appointment.status === 'confirmed' ? 'special-appointment-active' : ''}` : ''}`}>
       <div className="grid w-[62px] shrink-0 place-items-center border-r border-white/[0.07] text-center">
         <span className="text-sm font-semibold text-white">{formatTime(appointment.appointment_time)}</span>
       </div>
       <div className="min-w-0 flex-1 px-3 py-2.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
+            {special && <SpecialAppointmentBadge />}
             <p className="truncate text-xs font-medium text-white">{appointment.client_name}</p>
             <p className="mt-1 truncate text-[10px] text-[#A2A6AD]">{appointment.service?.name ?? 'Serviço'}</p>
             {appointment.staff_member?.name && <p className="mt-0.5 truncate text-[9px] text-[#F5C400]">com {appointment.staff_member.name}</p>}

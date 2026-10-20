@@ -1,11 +1,13 @@
 import webpush from 'web-push'
 import { createServiceClient } from '@/lib/supabase/server'
 import { formatDateShort, formatTime } from '@/lib/utils/format'
+import { isSpecialAppointment } from '@/lib/appointments/special'
 
 type PushAppointment = {
   id: string
   barber_id: string
   client_name: string
+  client_whatsapp: string
   appointment_date: string
   appointment_time: string
   service?: { name: string } | null
@@ -26,7 +28,7 @@ export async function notifyNewAppointment(appointment: PushAppointment) {
   const { data: devices } = await admin.from('push_subscriptions').select('id, endpoint, p256dh, auth').eq('barber_id', appointment.barber_id).eq('is_active', true)
   if (!devices?.length) return
   const payload = JSON.stringify({
-    title: 'Novo agendamento!',
+    title: isSpecialAppointment(appointment) ? '✨ Visita especial: Hélio Nunes!' : 'Novo agendamento!',
     body: `${appointment.client_name} agendou ${appointment.service?.name ?? 'um servico'} para ${formatDateShort(appointment.appointment_date)} as ${formatTime(appointment.appointment_time)}.`,
     url: `/agendamentos?date=${appointment.appointment_date}`,
     tag: `appointment-${appointment.id}`,

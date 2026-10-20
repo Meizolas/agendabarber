@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { addDays, format, parseISO, startOfWeek } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react'
-import type { Appointment, Barber } from '@/types'
+import { CalendarCheck, CalendarClock, CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react'
+import type { Appointment, AvailabilityRule, Barber, BlockedTime } from '@/types'
 import { Header } from '@/components/dashboard/Header'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { AppointmentCard } from '@/components/dashboard/AppointmentCard'
@@ -14,6 +14,10 @@ import { getSaoPauloDate } from '@/lib/utils/timezone'
 import { demoBarber, demoServices } from '@/lib/demo-data'
 import { DEMO_STORAGE_KEY } from '@/lib/demo-session'
 import { ManualAppointmentDialog } from '@/components/dashboard/ManualAppointmentDialog'
+import { FreezeDayControl } from '@/components/schedule/FreezeDayControl'
+import { BlockTimeForm } from '@/components/schedule/BlockTimeForm'
+import type { BlockTimesBatchInput } from '@/lib/validations/availability'
+import { SpecialAppointmentAlerts } from '@/components/dashboard/SpecialAppointmentAlerts'
 
 export default function AgendamentosPage() {
   const [barber, setBarber] = useState<Barber | null>(null)
@@ -31,6 +35,10 @@ export default function AgendamentosPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const [paymentLoadingId, setPaymentLoadingId] = useState<string | null>(null)
   const [manualAppointmentOpen, setManualAppointmentOpen] = useState(false)
+  const [blockFormOpen, setBlockFormOpen] = useState(false)
+  const [blockLoading, setBlockLoading] = useState(false)
+  const [availabilityRules, setAvailabilityRules] = useState<AvailabilityRule[]>([])
+  const [blockedTimes, setBlockedTimes] = useState<BlockedTime[]>([])
   const appointmentsRef = useRef<Appointment[]>([])
   const requestIdRef = useRef(0)
   const { toast } = useToast()
@@ -107,6 +115,51 @@ export default function AgendamentosPage() {
   }, [selectedDate, statusFilter, toast, viewMode])
 
   useEffect(() => { loadData() }, [loadData])
+
+  const loadBlockingData = useCallback(async () => {
+    if (demoMode) return
+    const [rulesResponse, blockedResponse] = await Promise.all([
+      fetch('/api/availability', { cache: 'no-store' }),
+      fetch('/api/blocked-times', { cache: 'no-store' }),
+    ])
+    if (rulesResponse.ok) setAvailabilityRules((await rulesResponse.json()).rules ?? [])
+    if (blockedResponse.ok) setBlockedTimes((await blockedResponse.json()).blocked ?? [])
+  }, [demoMode])
+
+  useEffect(() => { void loadBlockingData() }, [loadBlockingData])
+
+  const handleBlockTimes = async (data: BlockTimesBatchInput) => {
+    setBlockLoading(true)
+    const response = await fetch('/api/blocked-times', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      toast({ title: 'Não foi possível bloquear', description: payload?.error ?? 'Tente novamente.', variant: 'destructive' })
+    } else {
+      toast({ title: `${data.blocked_times.length} horário${data.blocked_times.length === 1 ? '' : 's'} bloqueado${data.blocked_times.length === 1 ? '' : 's'}` })
+      setBlockFormOpen(false)
+      await loadBlockingData()
+    }
+    setBlockLoading(false)
+  }
+
+  const handleUnblockTime = async (block: BlockedTime) => {
+    setBlockLoading(true)
+    const response = await fetch(`/api/blocked-times?id=${block.id}`, { method: 'DELETE' })
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      toast({ title: 'Não foi possível desbloquear', description: payload?.error ?? 'Tente novamente.', variant: 'destructive' })
+      setBlockLoading(false)
+      return false
+    }
+    toast({ title: `Horário ${block.blocked_time?.slice(0, 5)} desbloqueado` })
+    await loadBlockingData()
+    setBlockLoading(false)
+    return true
+  }
 
   useEffect(() => {
     const syncAppointments = () => {
@@ -205,6 +258,10 @@ export default function AgendamentosPage() {
           </div>
         </div>
 
+        <FreezeDayControl date={selectedDate} disabled={demoMode} refreshKey={blockedTimes.map((block) => block.id).join(',')} onChanged={() => void loadBlockingData()} />
+        <button type="button" disabled={demoMode || selectedDate < getSaoPauloDate()} onClick={() => setBlockFormOpen(true)} className="dashboard-card flex min-h-11 w-full items-center justify-center gap-2 border-[#F5C400]/35 text-xs font-semibold text-[#F5C400] transition hover:bg-[#F5C400]/10 disabled:opacity-50"><CalendarClock className="h-4 w-4" /> Bloquear horários desta data</button>
+        {!demoMode && <SpecialAppointmentAlerts appointments={appointments} barberId={barber?.id} />}
+
         <div className="flex gap-1.5 overflow-x-auto pb-1">
           {([['all', 'Todos'], ['confirmed', 'Confirmados'], ['completed', 'Concluídos'], ['cancelled', 'Cancelados']] as const).map(([value, label]) => (
             <button key={value} onClick={() => setStatusFilter(value)} className={`shrink-0 rounded-full border px-2.5 py-1 text-[9px] ${statusFilter === value ? 'border-[#F5C400] bg-[#F5C400]/10 text-[#F5C400]' : 'border-white/10 text-[#858A93]'}`}>{label}</button>
@@ -246,6 +303,16 @@ export default function AgendamentosPage() {
         onConfirm={handleAction}
         loading={actionLoading}
         variant={actionDialog.action === 'cancelled' ? 'destructive' : 'default'}
+      />
+      <BlockTimeForm
+        open={blockFormOpen}
+        onOpenChange={setBlockFormOpen}
+        onSubmit={handleBlockTimes}
+        onUnblock={handleUnblockTime}
+        loading={blockLoading}
+        rules={availabilityRules}
+        blockedTimes={blockedTimes}
+        initialDate={selectedDate}
       />
       <ManualAppointmentDialog
         open={manualAppointmentOpen}

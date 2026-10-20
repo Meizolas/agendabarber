@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { Bell, CalendarDays } from 'lucide-react'
 import type { Appointment } from '@/types'
 import { formatDateShort, formatPrice, formatTime } from '@/lib/utils/format'
+import { isSpecialAppointment } from '@/lib/appointments/special'
+import { SpecialAppointmentBadge } from '@/components/dashboard/SpecialAppointmentBadge'
 
 interface NotificationBellProps {
   appointments: Appointment[]
@@ -139,10 +141,11 @@ export function NotificationBell({ appointments }: NotificationBellProps) {
                       key={appointment.id}
                       href={`/agendamentos?date=${appointment.appointment_date}`}
                       onClick={() => setOpen(false)}
-                      className="block px-4 py-3 transition hover:bg-white/5"
+                      className={`block px-4 py-3 transition hover:bg-white/5 ${isSpecialAppointment(appointment) ? 'special-appointment special-appointment-active' : ''}`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
+                          {isSpecialAppointment(appointment) && <SpecialAppointmentBadge />}
                           <p className="truncate text-sm font-semibold text-white">{appointment.client_name}</p>
                           <p className="truncate text-xs text-[#9CA3AF]">{appointment.service?.name ?? 'Servico'}</p>
                           <p className="mt-1 text-xs text-[#F4B400]">

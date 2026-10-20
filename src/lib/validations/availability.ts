@@ -1,5 +1,10 @@
 import { z } from 'zod'
 
+export const calendarDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida').refine((value) => {
+  const date = new Date(`${value}T12:00:00Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+}, 'Data inválida')
+
 export const availabilityRuleSchema = z
   .object({
     day_of_week: z.coerce
@@ -30,14 +35,27 @@ export const availabilityRuleSchema = z
   .refine((data) => !data.lunch_start_time || !data.lunch_end_time || (data.lunch_start_time < data.lunch_end_time && data.lunch_start_time >= data.start_time && data.lunch_end_time <= data.end_time), { message: 'O almoço deve estar dentro do expediente', path: ['lunch_end_time'] })
 
 export const blockTimeSchema = z.object({
-  blocked_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida'),
+  blocked_date: calendarDateSchema,
   blocked_time: z
     .string()
-    .regex(/^\d{2}:\d{2}$/, 'Horário inválido')
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Horário inválido')
+    .nullable()
     .optional()
     .or(z.literal('')),
-  reason: z.string().max(200).optional(),
+  reason: z.string().trim().max(200).nullable().optional(),
+})
+
+const clockTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Horário inválido')
+
+export const blockTimesBatchSchema = z.object({
+  blocked_date: calendarDateSchema,
+  blocked_times: z.array(clockTimeSchema)
+    .min(1, 'Selecione pelo menos um horário')
+    .max(48, 'Máximo de 48 horários por operação')
+    .transform((times) => [...new Set(times)].sort()),
+  reason: z.string().trim().max(200).nullable().optional(),
 })
 
 export type AvailabilityRuleInput = z.infer<typeof availabilityRuleSchema>
 export type BlockTimeInput = z.infer<typeof blockTimeSchema>
+export type BlockTimesBatchInput = z.input<typeof blockTimesBatchSchema>

@@ -6,6 +6,7 @@ export const serviceSchema = z.object({
     .string()
     .trim()
     .url('Informe uma URL de imagem valida')
+    .nullable()
     .optional()
     .or(z.literal(''))
     .transform((value) => value || null),

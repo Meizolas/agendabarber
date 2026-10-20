@@ -15,6 +15,11 @@ import { getPublicAppUrl } from '@/lib/utils/app-url'
 import { calculateFinancialSummary, monthBounds, type FinancialAppointment } from '@/lib/finance/summary'
 import { getBillingAccessByBarberId } from '@/lib/billing/access'
 import { DashboardAutoRefresh } from '@/components/dashboard/DashboardAutoRefresh'
+import { AppointmentCard } from '@/components/dashboard/AppointmentCard'
+import { SpecialAppointmentAlerts } from '@/components/dashboard/SpecialAppointmentAlerts'
+import { SpecialAppointmentBadge } from '@/components/dashboard/SpecialAppointmentBadge'
+import { isSpecialAppointment } from '@/lib/appointments/special'
+import { formatDateShort } from '@/lib/utils/format'
 
 export const metadata: Metadata = { title: 'Dashboard | AgendBarber' }
 
@@ -28,7 +33,7 @@ export default async function DashboardPage() {
 
   const today = getSaoPauloDate()
   const weekEnd = addCalendarDays(today, 6)
-  const { currentStart, previousStart } = monthBounds(today)
+  const { currentStart } = monthBounds(today)
   const [
     { data: upcomingAppointments },
     { count: completedToday },
@@ -100,6 +105,13 @@ export default async function DashboardPage() {
         notifications={appointments}
       />
       <div className="flex-1 space-y-4 px-4 pb-5">
+        <SpecialAppointmentAlerts appointments={appointments} barberId={barber.id} />
+        {appointments.filter(isSpecialAppointment).map((appointment) => (
+          <section key={appointment.id} aria-label="Visita especial">
+            <Link href={`/agendamentos?date=${appointment.appointment_date}`} className="mb-2 inline-flex text-xs text-[#F5C400]">Visita especial · {formatDateShort(appointment.appointment_date)} · Ver na agenda</Link>
+            <AppointmentCard appointment={appointment} />
+          </section>
+        ))}
         {trialDaysLeft && (
           <Link href="/assinatura" className="flex items-center gap-3 rounded-xl border border-[#F5C400]/30 bg-[#F5C400]/[0.07] px-3.5 py-3">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#F5C400]/10 text-[#F5C400]"><Hourglass className="h-4.5 w-4.5" /></span>
@@ -113,7 +125,7 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        <section data-tour="next-appointment" className="dashboard-card overflow-hidden">
+        <section data-tour="next-appointment" className={`dashboard-card overflow-hidden ${next && isSpecialAppointment(next) ? 'special-appointment special-appointment-active' : ''}`}>
           <div className="flex items-center justify-between border-b border-white/[0.07] px-3 py-2.5">
             <p className="flex items-center gap-2 text-xs text-[#D7DADE]"><CalendarClock className="h-4 w-4 text-[#F5C400]" /> Próximo atendimento</p>
             <Link href="/agendamentos" aria-label="Ver agenda"><ChevronRight className="h-4 w-4 text-[#858A93]" /></Link>
@@ -122,6 +134,7 @@ export default async function DashboardPage() {
             <div className="flex items-center gap-3 px-3 py-3">
               <div className="min-w-[58px] border-r border-white/10 pr-3 text-center text-[20px] font-semibold text-[#F5C400]">{formatTime(next.appointment_time)}</div>
               <div className="min-w-0 flex-1">
+                {isSpecialAppointment(next) && <SpecialAppointmentBadge />}
                 <p className="truncate text-sm font-medium text-white">{next.client_name}</p>
                 <p className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-medium ${nextPaymentPending ? 'bg-[#F5C400]/15 text-[#F5C400]' : 'bg-[#22C55E]/15 text-[#65D787]'}`}>
                   <CircleDollarSign className="h-3 w-3" /> {nextPaymentLabel}
